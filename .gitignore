@@ -361,3 +361,10 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/VideoStreamServer/videos/2560x1440p@30fps.mp4
+/VideoStreamServer/videos/2560x1440p@60fps视频.mp4
+/VideoStreamServer/videos/9e9f019fd7c56aec1f1780a25ab1aeb2.mp4
+/VideoStreamServer/videos/3840-30帧规格.mp4
+/VideoStreamServer/videos/三角洲行动   2024-11-29 17-16-59.mp4
+/VideoStreamServer/videos/单车.mp4
+/VideoStreamServer/videos/摇摇鱼.mp4
