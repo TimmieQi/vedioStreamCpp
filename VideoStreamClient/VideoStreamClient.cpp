@@ -8,6 +8,9 @@
 #include "VideoDecoder.h"
 #include "AudioPlayer.h"
 #include "ClickableSlider.h"
+#include "DebugWindow.h"
+#include "ChartWidget.h" 
+
 #include <QDebug>
 #include <QKeyEvent>
 #include <QCloseEvent>
@@ -23,7 +26,8 @@ VideoStreamClient::VideoStreamClient(QWidget* parent)
     : QMainWindow(parent),
     m_workerThread(nullptr),
     m_worker(nullptr),
-    m_isFullScreen(false)
+    m_isFullScreen(false),
+    m_currentLatencyMs(0.0) 
 {
     // --- 1. 初始化核心数据结构 (使用智能指针) ---
     m_masterClock = std::make_unique<MasterClock>();
@@ -42,6 +46,11 @@ VideoStreamClient::VideoStreamClient(QWidget* parent)
     m_renderTimer = new QTimer(this);
     connect(m_renderTimer, &QTimer::timeout, this, &VideoStreamClient::onRenderTimerTimeout);
     m_renderTimer->start(33); // 大约 30 FPS
+
+    m_lastFpsUpdateTime = QDateTime::currentMSecsSinceEpoch();
+    m_statusUpdateTimer = new QTimer(this);
+    connect(m_statusUpdateTimer, &QTimer::timeout, this, &VideoStreamClient::updateStatus);
+    m_statusUpdateTimer->start(1000); // 每秒更新一次
     qDebug() << "客户端UI和工作线程已成功初始化。";
 }
 
@@ -236,7 +245,7 @@ void VideoStreamClient::initConnections()
     connect(m_progressSlider, &QSlider::sliderReleased, this, &VideoStreamClient::onSliderReleased);
     connect(dynamic_cast<ClickableSlider*>(m_progressSlider), &ClickableSlider::sliderClicked, this, &VideoStreamClient::onSliderReleased);
 
-
+    connect(m_debugBtn, &QPushButton::clicked, this, &VideoStreamClient::showDebugWindow);
     connect(m_volumeSlider, &QSlider::valueChanged, this, &VideoStreamClient::onVolumeChanged);
     // --- 主线程与工作线程之间的信号槽 ---
     connect(m_worker, &ClientWorker::connectionSuccess, this, &VideoStreamClient::handleConnectionSuccess);
@@ -246,22 +255,77 @@ void VideoStreamClient::initConnections()
 
 }
 
+void VideoStreamClient::resetPlaybackUI()
+{
+    statusBar()->showMessage("状态: 未连接");
+    m_connectBtn->setText("连接");
+    m_connectBtn->setEnabled(true);
+
+    m_playBtn->setEnabled(false);
+    m_videoList->clear();
+
+    m_videoLabel->clear();
+
+    m_videoLabel->setText("请连接服务器并选择一个视频源");
+
+    m_videoLabel->setStyleSheet("background-color: black; color: white; font-size: 16px;");
+
+    m_progressSlider->setEnabled(false);
+    m_progressSlider->setValue(0);
+
+    m_playPauseBtn->setEnabled(false);
+    m_playPauseBtn->setChecked(false); // 确保是“播放”图标
+    m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+
+    m_timeLabel->setText("00:00 / 00:00");
+
+    m_latencyIndicatorLabel->setText("时延状态: 未知");
+    m_latencyIndicatorLabel->setStyleSheet(R"(
+        QLabel { background-color: gray; color: white; /* ... */ }
+    )");
+
+    m_currentDurationSec = 0.0;
+
+    if (m_debugWindow) {
+        m_debugWindow->bitrateChart()->clearChart();
+        m_debugWindow->fpsChart()->clearChart();
+        m_debugWindow->latencyChart()->clearChart();
+    }
+    m_currentFps = 0.0;
+    m_frameCount = 0;
+    m_lastFpsUpdateTime = QDateTime::currentMSecsSinceEpoch();
+    m_currentLatencyMs.store(0.0);
+}
+
 // "连接"按钮的槽函数
 void VideoStreamClient::onConnectBtnClicked()
 {
-    QString ip = m_ipEntry->text();
-    if (ip.isEmpty()) {
-        QMessageBox::warning(this, "错误", "请输入服务器IP地址。");
-        return;
+    if (m_connectBtn->text() == "连接")
+    {
+        // --- 执行连接逻辑 ---
+        QString ip = m_ipEntry->text();
+        if (ip.isEmpty()) {
+            QMessageBox::warning(this, "错误", "请输入服务器IP地址。");
+            return;
+        }
+
+        statusBar()->showMessage("状态: 正在连接 " + ip + "...");
+        m_connectBtn->setEnabled(false);
+
+        QMetaObject::invokeMethod(m_worker, "connectToServer", Qt::QueuedConnection,
+            Q_ARG(QString, ip),
+            Q_ARG(quint16, AppConfig::CONTROL_PORT));
     }
+    else
+    {
+        // --- 执行断开逻辑 ---
+        qDebug() << "[Main] 用户请求断开连接。";
+        // 安全地请求工作线程执行断开操作
+        QMetaObject::invokeMethod(m_worker, "disconnectFromServer", Qt::QueuedConnection);
 
-    statusBar()->showMessage("状态: 正在连接 " + ip + "...");
-    m_connectBtn->setEnabled(false); // 防止重复点击
-
-    // 通过 invokeMethod 安全地调用工作线程中的槽函数
-    QMetaObject::invokeMethod(m_worker, "connectToServer", Qt::QueuedConnection,
-        Q_ARG(QString, ip),
-        Q_ARG(quint16, AppConfig::CONTROL_PORT));
+        // 立即重置UI状态
+        resetPlaybackUI();
+    }
 }
 
 
@@ -313,6 +377,9 @@ void VideoStreamClient::handleConnectionFailed(const QString& reason)
     m_connectBtn->setText("连接");
     m_connectBtn->setEnabled(true);
     m_playBtn->setEnabled(false);
+
+    QMessageBox::critical(this, "连接失败", reason);
+    resetPlaybackUI(); // 使用新函数来重置UI
 }
 
 // 处理收到播放信息的槽函数
@@ -454,6 +521,70 @@ void VideoStreamClient::onSliderReleased()
     }
 }
 
+void VideoStreamClient::showDebugWindow()
+{
+    if (!m_debugWindow) {
+        m_debugWindow = new DebugWindow(this);
+        // 连接关闭信号
+        connect(m_debugWindow, &DebugWindow::closed, this, &VideoStreamClient::onDebugWindowClosed);
+    }
+    m_debugWindow->show();
+    m_debugWindow->activateWindow();
+}
+
+void VideoStreamClient::onDebugWindowClosed()
+{
+    // 当调试窗口关闭时，将指针置空
+    m_debugWindow = nullptr;
+}
+
+
+void VideoStreamClient::updateStatus()
+{
+    //计算 FPS
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    qint64 timeDiff = now - m_lastFpsUpdateTime;
+    if (timeDiff > 0) {
+        m_currentFps = (m_frameCount * 1000.0) / timeDiff;
+        m_frameCount = 0;
+        m_lastFpsUpdateTime = now;
+    }
+
+    // 获取网络统计数据 
+    NetworkStats stats = m_networkMonitor->get_statistics();
+    double currentBitrateKbps = stats.bitrate_bps / 1000.0;
+
+
+
+    double latency = m_currentLatencyMs.load();
+    // 更新图表 (如果调试窗口存在) 
+    if (m_debugWindow) {
+        // 只有在播放时才更新图表
+        if (m_masterClock->get_time_ms() >= 0 && !m_masterClock->is_paused()) {
+            m_debugWindow->bitrateChart()->updateChart(currentBitrateKbps);
+            m_debugWindow->fpsChart()->updateChart(m_currentFps);
+            m_debugWindow->latencyChart()->updateChart(latency);
+        }
+    }
+
+    // 更新时延状态标签
+    if (m_masterClock->get_time_ms() >= 0 && !m_masterClock->is_paused()) {
+        QString styleSheet;
+        if (latency < 80) { // 优秀
+            styleSheet = "background-color: green; color: white; padding: 5px; border-radius: 5px; font-weight: bold;";
+        }
+        else if (latency < 200) { // 一般
+            styleSheet = "background-color: orange; color: black; padding: 5px; border-radius: 5px; font-weight: bold;";
+        }
+        else { // 较差
+            styleSheet = "background-color: red; color: white; padding: 5px; border-radius: 5px; font-weight: bold;";
+        }
+        m_latencyIndicatorLabel->setStyleSheet(styleSheet);
+        m_latencyIndicatorLabel->setText(QString("时延: %1 ms").arg(static_cast<int>(latency)));
+    }
+}
+
+
 void VideoStreamClient::onRenderTimerTimeout()
 {
     // 从主时钟获取当前的播放时间戳
@@ -474,6 +605,15 @@ void VideoStreamClient::onRenderTimerTimeout()
     // 从包装器中获取底层的 AVFrame 指针
     // .get() 方法返回原始指针，但所有权仍在 unique_ptr 手中
     AVFrame* frame_to_render = decoded_frame_wrapper->frame.get();
+
+    if (frame_to_render) {
+
+        double latency = static_cast<double>(target_pts - frame_to_render->pts);
+        // 时延不应该是负数
+        m_currentLatencyMs.store(std::max(0.0, latency));
+    }
+    // --- 新增结束 ---
+
     if (!frame_to_render || !frame_to_render->data[0]) {
         // 确保帧和其数据是有效的
         return;
@@ -538,11 +678,14 @@ void VideoStreamClient::onRenderTimerTimeout()
         QImage::Format_RGB888
     );
 
-    // 将 QImage 转换为 QPixmap 并显示在 QLabel 上
-    //    .copy() 是必要的，它会创建一个独立的 QImage 副本。
-    //    这可以防止在下一轮渲染 m_rgbBuffer 被覆盖时，Qt 渲染系统还在使用旧数据而导致的画面撕裂或崩溃。
-    m_videoLabel->setPixmap(QPixmap::fromImage(image.copy()));
 
+
+    QPixmap pixmap = QPixmap::fromImage(image.copy());
+
+    QPixmap scaled_pixmap = pixmap.scaled(m_videoLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    m_videoLabel->setPixmap(scaled_pixmap);
+    m_frameCount++;
     // 更新UI上的时间显示和进度条
       if (m_currentDurationSec > 0 && !m_progressSlider->isSliderDown())
     {

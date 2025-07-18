@@ -12,7 +12,7 @@ class DecodedFrameBuffer;
 class ClientWorker;
 class VideoDecoder;
 class AudioPlayer;
-
+class DebugWindow; 
 class VideoStreamClient : public QMainWindow
 {
     Q_OBJECT
@@ -33,7 +33,7 @@ private:
     void initConnections(); // 用于连接信号槽的函数
     void initWorkerThread(); // 用于初始化工作线程的函数
     void initMediaThreads(); // 用于初始化媒体线程的函数
-
+    void resetPlaybackUI();
 
     // --- 媒体处理线程 ---
     QThread* m_videoDecodeThread = nullptr;
@@ -92,6 +92,16 @@ private:
     bool m_isFullScreen = false;
     QRect m_originalGeometry;
     double m_currentDurationSec = 0.0; // 保存当前视频总时长
+
+    // 调试窗口成员 
+    DebugWindow* m_debugWindow = nullptr;
+    QTimer* m_statusUpdateTimer = nullptr; // 用于定期更新图表和状态标签
+
+    // 图表的数据
+    double m_currentFps = 0.0;
+    int m_frameCount = 0;
+    qint64 m_lastFpsUpdateTime = 0;
+    std::atomic<double> m_currentLatencyMs;
 private slots:
     // 声明槽函数，用于响应信号
     void toggleFullScreen();
@@ -105,5 +115,9 @@ private slots:
     void onVolumeChanged(int value);
     void onPlayPauseBtnClicked(); // 按下暂停键
     void onSliderReleased(); // 释放进度条
+
+    void showDebugWindow();
+    void onDebugWindowClosed();
+    void updateStatus();
     // 更多槽函数将在这里添加...
 };

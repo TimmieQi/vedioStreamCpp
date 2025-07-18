@@ -67,6 +67,12 @@
     <ClCompile Include="ClickableSlider.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ChartWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shared_config.h">
@@ -102,6 +108,12 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="ClickableSlider.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="ChartWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="DebugWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

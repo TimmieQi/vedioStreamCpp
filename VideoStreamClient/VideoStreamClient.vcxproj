@@ -32,7 +32,7 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
     <QtInstall>6.7.1_msvc2019_64</QtInstall>
-    <QtModules>core;gui;network;widgets</QtModules>
+    <QtModules>core;gui;network;widgets;charts</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
@@ -94,8 +94,10 @@
     <QtUic Include="VideoStreamClient.ui" />
     <QtMoc Include="VideoStreamClient.h" />
     <ClCompile Include="AudioPlayer.cpp" />
+    <ClCompile Include="ChartWidget.cpp" />
     <ClCompile Include="ClickableSlider.cpp" />
     <ClCompile Include="ClientWorker.cpp" />
+    <ClCompile Include="DebugWindow.cpp" />
     <ClCompile Include="DecodedFrameBuffer.cpp" />
     <ClCompile Include="JitterBuffer.cpp" />
     <ClCompile Include="MasterClock.cpp" />
@@ -111,6 +113,8 @@
     <QtMoc Include="UdpReceiver.h" />
     <QtMoc Include="ClientWorker.h" />
     <QtMoc Include="ClickableSlider.h" />
+    <QtMoc Include="ChartWidget.h" />
+    <QtMoc Include="DebugWindow.h" />
     <ClInclude Include="DecodedFrameBuffer.h" />
     <ClInclude Include="JitterBuffer.h" />
     <ClInclude Include="MasterClock.h" />
