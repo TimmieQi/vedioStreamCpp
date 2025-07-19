@@ -33,6 +33,9 @@
     <ClCompile Include="FileStreamer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="CameraStreamer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileSystemManager.h">
@@ -51,6 +54,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FileStreamer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraStreamer.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

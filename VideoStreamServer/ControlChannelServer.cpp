@@ -28,7 +28,7 @@ void ControlChannelServer::handle_receive(const boost::system::error_code& error
         try {
             std::string received_data(m_recv_buffer.begin(), m_recv_buffer.begin() + bytes_transferred);
             nlohmann::json command = nlohmann::json::parse(received_data);
-            std::cout << "[服务端-控制] 收到来自 " << m_remote_endpoint << " 的命令: " << command.dump() << std::endl;
+
             handle_command(command);
         }
         catch (const std::exception& e) {
@@ -43,13 +43,14 @@ void ControlChannelServer::handle_receive(const boost::system::error_code& error
 void ControlChannelServer::handle_command(const nlohmann::json& command_json)
 {
     std::string command_str = command_json.value("command", "");
-    std::cerr << "[服务端-控制] 开始匹配命令 "  << std::endl;
     if (command_str == "get_list") {
         nlohmann::json file_list_json = m_video_files;
         file_list_json.push_back("camera");
         send_response(file_list_json);
+        std::cout << "[服务端-控制] 收到来自 " << m_remote_endpoint << " 的命令: get_list"  << std::endl;
     }
     else if (command_str == "play") {
+        std::cout << "[服务端-控制] 收到来自 " << m_remote_endpoint << " 的命令: play" << std::endl;
         std::string source = command_json.value("source", "");
         if (!source.empty()) {
             nlohmann::json play_info = m_streamer_manager->start_stream(source, m_remote_endpoint);
@@ -59,6 +60,7 @@ void ControlChannelServer::handle_command(const nlohmann::json& command_json)
         }
     }
     else if (command_str == "seek") {
+        std::cout << "[服务端-控制] 收到来自 " << m_remote_endpoint << " 的命令: seek" << std::endl;
         double time = command_json.value("time", -1.0);
         if (time >= 0) {
             m_streamer_manager->seek_stream(time);
