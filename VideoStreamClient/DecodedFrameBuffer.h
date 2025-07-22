@@ -5,12 +5,12 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <opencv2/opencv.hpp> // 包含OpenCV主头文件
 
-// 前向声明，避免在头文件中引入重量级的 FFmpeg 或 OpenCV 头文件
+// 前向声明 FFmpeg 结构体
 struct AVFrame;
-class QImage; // 如果我们决定直接存QImage
 
-// 定义解码后的帧的数据结构
+// 解码后帧的数据结构
 struct DecodedFrame {
     DecodedFrame(AVFrame* fr);
     ~DecodedFrame();
@@ -22,15 +22,24 @@ class DecodedFrameBuffer
 {
 public:
     DecodedFrameBuffer();
-    ~DecodedFrameBuffer(); 
+    ~DecodedFrameBuffer();
 
     void reset();
     void add_frame(std::unique_ptr<DecodedFrame> frame);
     std::unique_ptr<DecodedFrame> get_frame(int64_t target_pts_ms);
+    std::unique_ptr<DecodedFrame> get_interpolated_frame(int64_t target_pts_ms);
 
 private:
+    // 使用OpenCV光流法进行插值的函数
+    AVFrame* interpolate(const AVFrame* prev, const AVFrame* next, double factor);
+
+    // 辅助函数：AVFrame -> cv::Mat (仅Y分量/灰度图)
+    bool avframe_to_mat_gray(const AVFrame* av_frame, cv::Mat& out_mat);
+    // 辅助函数：cv::Mat -> AVFrame
+    AVFrame* mat_to_avframe(const cv::Mat& mat, int width, int height);
+
+
     std::mutex mtx_;
-    // 使用 deque 作为底层容器
     std::deque<std::unique_ptr<DecodedFrame>> queue_;
     int64_t last_played_pts_;
     size_t buffer_size_ms_;
