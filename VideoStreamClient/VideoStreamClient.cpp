@@ -9,58 +9,61 @@
 #include "AudioPlayer.h"
 #include "ClickableSlider.h"
 #include "DebugWindow.h"
-#include "ChartWidget.h" 
+#include "ChartWidget.h"
 
 #include <QDebug>
 #include <QKeyEvent>
 #include <QCloseEvent>
 #include <QMessageBox>
-
+#include <QPushButton>
+#include <QLabel>
+#include <QGroupBox>
+#include <cmath>
 
 extern "C" {
 #include <libswscale/swscale.h>
 #include <libavutil/imgutils.h>
 }
-// 构造函数
+
 VideoStreamClient::VideoStreamClient(QWidget* parent)
     : QMainWindow(parent),
     m_workerThread(nullptr),
     m_worker(nullptr),
     m_isFullScreen(false),
-    m_currentLatencyMs(0.0) 
+    m_isLeftPanelCollapsed(false),
+    m_currentLatencyMs(0.0)
 {
-    // --- 1. 初始化核心数据结构 (使用智能指针) ---
     m_masterClock = std::make_unique<MasterClock>();
     m_networkMonitor = std::make_unique<NetworkMonitor>();
     m_videoJitterBuffer = std::make_unique<JitterBuffer>();
     m_audioJitterBuffer = std::make_unique<JitterBuffer>();
     m_decodedFrameBuffer = std::make_unique<DecodedFrameBuffer>();
 
-    // --- 2. 初始化UI和工作线程 ---
     initUI();
     initWorkerThread();
     initMediaThreads();
     initConnections();
 
-    // 启动渲染定时器
+    m_animationTimer = new QTimer(this);
+    connect(m_animationTimer, &QTimer::timeout, this, &VideoStreamClient::onAnimationStep);
+
     m_renderTimer = new QTimer(this);
     connect(m_renderTimer, &QTimer::timeout, this, &VideoStreamClient::onRenderTimerTimeout);
-    m_renderTimer->start(33); // 大约 30 FPS
+    m_renderTimer->start(8);
 
     m_lastFpsUpdateTime = QDateTime::currentMSecsSinceEpoch();
     m_statusUpdateTimer = new QTimer(this);
     connect(m_statusUpdateTimer, &QTimer::timeout, this, &VideoStreamClient::updateStatus);
-    m_statusUpdateTimer->start(1000); // 每秒更新一次
+    m_statusUpdateTimer->start(1000);
+
     qDebug() << "客户端UI和工作线程已成功初始化。";
 }
 
-// 析构函数
 VideoStreamClient::~VideoStreamClient()
 {
-    // 停止线程
     if (m_workerThread && m_workerThread->isRunning()) {
-        m_workerThread->quit(); // 请求线程事件循环退出
-        m_workerThread->wait(); // 等待线程完全结束
+        m_workerThread->quit();
+        m_workerThread->wait();
     }
     if (m_videoDecodeThread && m_videoDecodeThread->isRunning()) {
         QMetaObject::invokeMethod(m_videoDecoder, "stopDecoding", Qt::QueuedConnection);
@@ -75,157 +78,234 @@ VideoStreamClient::~VideoStreamClient()
     qDebug() << "客户端主窗口已销毁。";
 }
 
-// 初始化UI布局
 void VideoStreamClient::initUI()
 {
-    // --- 窗口基本设置 ---
-    setWindowTitle("高级视频流客户端 (C++ H.265版)");
-    setGeometry(100, 100, 1000, 800);
+    const QString COLOR_BACKGROUND = "#f0f2f5";
+    const QString COLOR_PANEL = "#ffffff";
+    const QString COLOR_PRIMARY = "#007bff";
+    const QString COLOR_PRIMARY_HOVER = "#0056b3";
+    const QString COLOR_TEXT_PRIMARY = "#333333";
+    const QString COLOR_TEXT_SECONDARY = "#606266";
+    const QString COLOR_BORDER = "#dcdfe6";
+    const QString COLOR_BUTTON_HOVER = "#e9e9e9";
 
-    // --- 主窗口和主布局 ---
+    setWindowTitle("高级视频流客户端 (C++ H.265版)");
+    setGeometry(100, 100, 1280, 800);
+    this->setStyleSheet(QString("background-color: %1;").arg(COLOR_BACKGROUND));
+
     QWidget* mainWidget = new QWidget(this);
     setCentralWidget(mainWidget);
     m_mainLayout = new QHBoxLayout(mainWidget);
+    m_mainLayout->setSpacing(0);
+    m_mainLayout->setContentsMargins(15, 15, 15, 15);
 
-    // ==========================================================
-    // 构建左侧面板
-    // ==========================================================
+    m_toggleButton = new QPushButton(this);
+    m_toggleButton->setCursor(Qt::PointingHandCursor);
+    m_toggleButton->setCheckable(true);
+    m_toggleButton->setChecked(true);
+    m_toggleButton->setMinimumHeight(100);
+    m_toggleButton->setStyleSheet(QString(
+        "QPushButton { background-color: %1; border: 1px solid %2; border-right: none; padding: 10px 5px; border-top-left-radius: 8px; border-bottom-left-radius: 8px; }"
+        "QPushButton:hover { background-color: #e5e5e5; }"
+    ).arg(COLOR_PANEL, COLOR_BORDER));
+    m_mainLayout->addWidget(m_toggleButton);
+
     m_leftPanelWidget = new QWidget(this);
+    m_leftPanelWidget->setMinimumWidth(m_leftPanelLastWidth); // 初始宽度
+    m_leftPanelWidget->setMaximumWidth(m_leftPanelLastWidth); // 初始宽度
+    m_leftPanelWidget->setStyleSheet(QString("background-color: %1; border-radius: 0px; border: 1px solid %2;").arg(COLOR_PANEL, COLOR_BORDER));
     QVBoxLayout* leftLayout = new QVBoxLayout(m_leftPanelWidget);
+    leftLayout->setSpacing(15);
+    leftLayout->setContentsMargins(20, 15, 20, 20);
 
-    QWidget* connGroup = new QWidget(m_leftPanelWidget);
+    // ... (左侧面板内部控件的创建代码保持不变)
+    QGroupBox* connGroup = new QGroupBox("服务器连接", m_leftPanelWidget);
+    connGroup->setStyleSheet(QString("QGroupBox { border: 1px solid %1; border-radius: 5px; margin-top: 10px; font-size: 14px; color: %2; } QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; padding: 0 5px; left: 10px; }").arg(COLOR_BORDER, COLOR_TEXT_PRIMARY));
     QHBoxLayout* connLayout = new QHBoxLayout(connGroup);
-    connLayout->addWidget(new QLabel("服务器IP:", connGroup));
+    connLayout->setSpacing(10);
+    QLabel* ipLabel = new QLabel("服务器IP:", connGroup);
+    ipLabel->setStyleSheet(QString("font-size: 14px; color: %1;").arg(COLOR_TEXT_PRIMARY));
+    connLayout->addWidget(ipLabel);
     m_ipEntry = new QLineEdit("127.0.0.1", connGroup);
+    m_ipEntry->setStyleSheet(QString("QLineEdit { font-size: 14px; padding: 8px; border: 1px solid %1; border-radius: 5px; color: %2; } QLineEdit:focus { border: 1px solid %3; }").arg(COLOR_BORDER, COLOR_TEXT_PRIMARY, COLOR_PRIMARY));
     connLayout->addWidget(m_ipEntry);
     m_connectBtn = new QPushButton("连接", connGroup);
+    m_connectBtn->setCursor(Qt::PointingHandCursor);
+    m_connectBtn->setStyleSheet(QString("QPushButton { font-size: 14px; font-weight: bold; padding: 8px 18px; background-color: %1; color: white; border: none; border-radius: 5px; } QPushButton:hover { background-color: %2; }").arg(COLOR_PRIMARY, COLOR_PRIMARY_HOVER));
     connLayout->addWidget(m_connectBtn);
     leftLayout->addWidget(connGroup);
-
-    leftLayout->addWidget(new QLabel("播放列表:", m_leftPanelWidget));
+    QLabel* playlistLabel = new QLabel("播放列表:", m_leftPanelWidget);
+    playlistLabel->setStyleSheet(QString("font-size: 14px; font-weight: bold; color: %1; margin-top: 10px;").arg(COLOR_TEXT_PRIMARY));
+    leftLayout->addWidget(playlistLabel);
     m_videoList = new QListWidget(m_leftPanelWidget);
+    m_videoList->setMinimumHeight(450);
+    m_videoList->setStyleSheet(QString("QListWidget { border: 1px solid %1; border-radius: 5px; font-size: 14px; } QListWidget::item { padding: 10px; color: %2; } QListWidget::item:hover { background-color: %3; } QListWidget::item:selected { background-color: %4; color: white; }").arg(COLOR_BORDER, COLOR_TEXT_PRIMARY, COLOR_BUTTON_HOVER, COLOR_PRIMARY));
     leftLayout->addWidget(m_videoList);
-
     m_playBtn = new QPushButton("播放选中项", m_leftPanelWidget);
+    m_playBtn->setCursor(Qt::PointingHandCursor);
     m_playBtn->setEnabled(false);
+    m_playBtn->setStyleSheet(QString("QPushButton { font-size: 14px; padding: 8px 15px; background-color: white; color: %1; border: 1px solid %2; border-radius: 5px; } QPushButton:hover { background-color: %3; } QPushButton:disabled { background-color: #f9f9f9; color: #c0c4cc; border-color: #e4e7ed; }").arg(COLOR_TEXT_PRIMARY, COLOR_BORDER, COLOR_BUTTON_HOVER));
     leftLayout->addWidget(m_playBtn);
-
+    leftLayout->addStretch();
     m_debugBtn = new QPushButton("高级调试 (图表)", m_leftPanelWidget);
+    m_debugBtn->setCursor(Qt::PointingHandCursor);
+    m_debugBtn->setStyleSheet(QString("QPushButton { font-size: 14px; padding: 8px 15px; background-color: white; color: %1; border: 1px solid %2; border-radius: 5px; } QPushButton:hover { background-color: %3; }").arg(COLOR_TEXT_PRIMARY, COLOR_BORDER, COLOR_BUTTON_HOVER));
     leftLayout->addWidget(m_debugBtn);
-
     m_latencyIndicatorLabel = new QLabel("时延状态: 未知", m_leftPanelWidget);
     m_latencyIndicatorLabel->setAlignment(Qt::AlignCenter);
     m_latencyIndicatorLabel->setMinimumSize(120, 30);
-    m_latencyIndicatorLabel->setStyleSheet(R"(
-        QLabel {
-            background-color: gray;
-            color: white;
-            padding: 5px;
-            border: 2px solid white;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-    )");
-    leftLayout->addWidget(m_latencyIndicatorLabel);
-    leftLayout->addStretch();
+    m_latencyIndicatorLabel->setStyleSheet(QString("QLabel { background-color: #e8f0fe; color: %1; padding: 5px; border: 1px solid %2; border-radius: 5px; font-weight: bold; font-size: 14px; }").arg(COLOR_PRIMARY, COLOR_BORDER));
+    leftLayout->addWidget(m_latencyIndicatorLabel, 0, Qt::AlignHCenter);
 
-    // ==========================================================
-    // 构建右侧视频播放器区域
-    // ==========================================================
     m_videoPlayerContainer = new QWidget(this);
+    m_videoPlayerContainer->setStyleSheet(QString("background-color: %1; border-radius: 8px;").arg(COLOR_PANEL));
     QVBoxLayout* videoPlayerContainerLayout = new QVBoxLayout(m_videoPlayerContainer);
     videoPlayerContainerLayout->setContentsMargins(0, 0, 0, 0);
 
+    // ... (右侧视频播放器内部控件的创建代码保持不变)
     m_videoLabel = new QLabel("请连接服务器并选择一个视频源", m_videoPlayerContainer);
     m_videoLabel->setAlignment(Qt::AlignCenter);
     m_videoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_videoLabel->setStyleSheet("background-color: black; color: white; font-size: 16px;");
+    m_videoLabel->setStyleSheet(QString("color: %1; font-size: 20px; background-color: #000000; border-top-left-radius: 8px; border-top-right-radius: 8px;").arg(COLOR_TEXT_SECONDARY));
     videoPlayerContainerLayout->addWidget(m_videoLabel, 1);
-
-    // ==========================================================
-    // 构建底部控制条
-    // ==========================================================
     m_controlsWidget = new QWidget(m_videoPlayerContainer);
+    m_controlsWidget->setStyleSheet(QString("background-color: rgba(255, 255, 255, 0.9); border-radius: 0 0 8px 8px; padding: 8px; border-top: 1px solid %1;").arg(COLOR_BORDER));
     QVBoxLayout* controlsLayout = new QVBoxLayout(m_controlsWidget);
-
+    controlsLayout->setSpacing(5);
     m_progressSlider = new ClickableSlider(Qt::Horizontal, m_controlsWidget);
     m_progressSlider->setEnabled(false);
+    m_progressSlider->setStyleSheet(QString("QSlider::groove:horizontal { background: #e0e0e0; height: 5px; border-radius: 2px; } QSlider::handle:horizontal { background: %1; width: 16px; height: 16px; border-radius: 8px; margin: -6px 0; } QSlider::handle:horizontal:hover { background: %2; } QSlider::sub-page:horizontal { background: %1; height: 5px; border-radius: 2px; }").arg(COLOR_PRIMARY, COLOR_PRIMARY_HOVER));
     controlsLayout->addWidget(m_progressSlider);
-
     QHBoxLayout* bottomBar = new QHBoxLayout();
-
+    bottomBar->setSpacing(15);
     m_playPauseBtn = new QPushButton(m_controlsWidget);
     m_playPauseBtn->setCheckable(true);
     m_playPauseBtn->setChecked(false);
     m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+    m_playPauseBtn->setIconSize(QSize(20, 20));
+    m_playPauseBtn->setCursor(Qt::PointingHandCursor);
     m_playPauseBtn->setEnabled(false);
+    m_playPauseBtn->setStyleSheet(QString("QPushButton { color: %1; background-color: transparent; border: none; padding: 5px; } QPushButton:hover { color: %2; }").arg(COLOR_TEXT_PRIMARY, COLOR_PRIMARY));
     bottomBar->addWidget(m_playPauseBtn);
-
     m_timeLabel = new QLabel("00:00 / 00:00", m_controlsWidget);
+    m_timeLabel->setStyleSheet(QString("color: %1; font-size: 14px;").arg(COLOR_TEXT_PRIMARY));
     bottomBar->addWidget(m_timeLabel);
     bottomBar->addStretch();
-
-    bottomBar->addWidget(new QLabel("音量:", m_controlsWidget));
+    QLabel* volumeLabel = new QLabel(m_controlsWidget);
+    volumeLabel->setPixmap(style()->standardIcon(QStyle::SP_MediaVolume).pixmap(QSize(20, 20)));
+    bottomBar->addWidget(volumeLabel);
     m_volumeSlider = new ClickableSlider(Qt::Horizontal, m_controlsWidget);
     m_volumeSlider->setRange(0, 100);
     m_volumeSlider->setValue(100);
-    m_volumeSlider->setMaximumWidth(150);
+    m_volumeSlider->setMaximumWidth(120);
+    m_volumeSlider->setStyleSheet(m_progressSlider->styleSheet());
     bottomBar->addWidget(m_volumeSlider);
-
-
     m_fullscreenBtn = new QPushButton(m_controlsWidget);
     m_fullscreenBtn->setIcon(style()->standardIcon(QStyle::SP_TitleBarMaxButton));
+    m_fullscreenBtn->setIconSize(QSize(20, 20));
+    m_fullscreenBtn->setCursor(Qt::PointingHandCursor);
+    m_fullscreenBtn->setStyleSheet(m_playPauseBtn->styleSheet());
     bottomBar->addWidget(m_fullscreenBtn);
-
     controlsLayout->addLayout(bottomBar);
     videoPlayerContainerLayout->addWidget(m_controlsWidget);
 
-    // ==========================================================
-    // 组合主布局
-    // ==========================================================
-    m_mainLayout->addWidget(m_leftPanelWidget, 1);
-    m_mainLayout->addWidget(m_videoPlayerContainer, 3);
+    m_mainLayout->addWidget(m_leftPanelWidget);
+    m_mainLayout->addWidget(m_videoPlayerContainer);
+    m_mainLayout->setStretch(1, 0); // 左侧面板不拉伸
+    m_mainLayout->setStretch(2, 1); // 视频区域拉伸
 
-    // ==========================================================
-    // 状态栏
-    // ==========================================================
+    statusBar()->setStyleSheet(QString("background-color: %1; color: %2; font-size: 13px; border-top: 1px solid %3;").arg(COLOR_PANEL, COLOR_TEXT_SECONDARY, COLOR_BORDER));
     statusBar()->showMessage("状态: 未连接");
 }
 
-// 初始化工作线程
+void VideoStreamClient::initConnections()
+{
+    connect(m_toggleButton, &QPushButton::clicked, this, &VideoStreamClient::toggleLeftPanel);
+    connect(m_fullscreenBtn, &QPushButton::clicked, this, &VideoStreamClient::toggleFullScreen);
+    connect(m_connectBtn, &QPushButton::clicked, this, &VideoStreamClient::onConnectBtnClicked);
+    connect(m_playBtn, &QPushButton::clicked, this, &VideoStreamClient::onPlayBtnClicked);
+    connect(m_playPauseBtn, &QPushButton::clicked, this, &VideoStreamClient::onPlayPauseBtnClicked);
+    connect(m_progressSlider, &QSlider::sliderReleased, this, &VideoStreamClient::onSliderReleased);
+    connect(dynamic_cast<ClickableSlider*>(m_progressSlider), &ClickableSlider::sliderClicked, this, &VideoStreamClient::onSliderReleased);
+    connect(m_debugBtn, &QPushButton::clicked, this, &VideoStreamClient::showDebugWindow);
+    connect(m_volumeSlider, &QSlider::valueChanged, this, &VideoStreamClient::onVolumeChanged);
+    connect(m_worker, &ClientWorker::connectionSuccess, this, &VideoStreamClient::handleConnectionSuccess);
+    connect(m_worker, &ClientWorker::connectionFailed, this, &VideoStreamClient::handleConnectionFailed);
+    connect(m_worker, &ClientWorker::playInfoReceived, this, &VideoStreamClient::handlePlayInfo);
+}
+
+void VideoStreamClient::toggleLeftPanel()
+{
+    if (m_animationTimer->isActive()) {
+        m_animationTimer->stop();
+    }
+
+    if (m_isLeftPanelCollapsed) { // 展开
+        m_leftPanelWidget->show();
+        m_animationStartWidth = 0;
+        m_animationEndWidth = m_leftPanelLastWidth;
+    }
+    else { // 收起
+        m_leftPanelLastWidth = m_leftPanelWidget->width();
+        if (m_leftPanelLastWidth <= 0) m_leftPanelLastWidth = 320;
+        m_animationStartWidth = m_leftPanelLastWidth;
+        m_animationEndWidth = 0;
+    }
+
+    m_windowStartWidth = this->width();
+    m_animationStartTime = QDateTime::currentMSecsSinceEpoch();
+    m_animationTimer->start(16);
+}
+
+void VideoStreamClient::onAnimationStep()
+{
+    qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - m_animationStartTime;
+    double progress = static_cast<double>(elapsed) / m_animationDuration;
+
+    if (progress >= 1.0) {
+        progress = 1.0;
+        m_animationTimer->stop();
+    }
+
+    // 缓动曲线
+    double eased_progress = 1.0 - std::pow(1.0 - progress, 3);
+    int currentPanelWidth = m_animationStartWidth + (m_animationEndWidth - m_animationStartWidth) * eased_progress;
+
+    // 1. 设置左侧面板宽度
+    m_leftPanelWidget->setFixedWidth(currentPanelWidth);
+
+    // 2. 设置主窗口宽度
+    int width_delta = m_animationStartWidth - currentPanelWidth;
+    this->resize(m_windowStartWidth - width_delta, this->height());
+
+    if (!m_animationTimer->isActive()) { // 动画结束
+        m_isLeftPanelCollapsed = (m_animationEndWidth == 0);
+        m_toggleButton->setChecked(!m_isLeftPanelCollapsed);
+        if (m_isLeftPanelCollapsed) {
+            m_leftPanelWidget->hide();
+        }
+    }
+}
+
+// ... (所有其他成员函数的代码保持不变) ...
 void VideoStreamClient::initWorkerThread()
 {
     m_workerThread = new QThread(this);
-
-    // 创建 Worker 实例，并将核心数据结构的引用传递给它
-    m_worker = new ClientWorker(
-        *m_networkMonitor,
-        *m_videoJitterBuffer,
-        *m_audioJitterBuffer
-    );
-
-    // 将 worker 移动到新线程。此后 worker 的所有槽函数都会在新线程中执行。
+    m_worker = new ClientWorker(*m_networkMonitor, *m_videoJitterBuffer, *m_audioJitterBuffer);
     m_worker->moveToThread(m_workerThread);
-
-    // 当线程结束时，自动删除 worker 对象
     connect(m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
-
-    // 启动线程的事件循环
     m_workerThread->start();
-
     qDebug() << "[Main] 工作线程已启动。";
 }
 
 void VideoStreamClient::initMediaThreads()
 {
-    // --- 视频解码线程 ---
     m_videoDecodeThread = new QThread(this);
     m_videoDecoder = new VideoDecoder(*m_videoJitterBuffer, *m_decodedFrameBuffer);
     m_videoDecoder->moveToThread(m_videoDecodeThread);
     connect(m_videoDecodeThread, &QThread::finished, m_videoDecoder, &QObject::deleteLater);
     m_videoDecodeThread->start();
 
-    // --- 音频播放线程 ---
     m_audioPlayThread = new QThread(this);
     m_audioPlayer = new AudioPlayer(*m_audioJitterBuffer, *m_masterClock);
     m_audioPlayer->moveToThread(m_audioPlayThread);
@@ -233,26 +313,29 @@ void VideoStreamClient::initMediaThreads()
     m_audioPlayThread->start();
 }
 
-// 初始化所有信号槽连接
-void VideoStreamClient::initConnections()
+void VideoStreamClient::toggleFullScreen()
 {
-    // --- UI 控件的信号槽 ---
-    connect(m_fullscreenBtn, &QPushButton::clicked, this, &VideoStreamClient::toggleFullScreen);
-    connect(m_connectBtn, &QPushButton::clicked, this, &VideoStreamClient::onConnectBtnClicked);
-    connect(m_playBtn, &QPushButton::clicked, this, &VideoStreamClient::onPlayBtnClicked);
-
-    connect(m_playPauseBtn, &QPushButton::clicked, this, &VideoStreamClient::onPlayPauseBtnClicked);
-    connect(m_progressSlider, &QSlider::sliderReleased, this, &VideoStreamClient::onSliderReleased);
-    connect(dynamic_cast<ClickableSlider*>(m_progressSlider), &ClickableSlider::sliderClicked, this, &VideoStreamClient::onSliderReleased);
-
-    connect(m_debugBtn, &QPushButton::clicked, this, &VideoStreamClient::showDebugWindow);
-    connect(m_volumeSlider, &QSlider::valueChanged, this, &VideoStreamClient::onVolumeChanged);
-    // --- 主线程与工作线程之间的信号槽 ---
-    connect(m_worker, &ClientWorker::connectionSuccess, this, &VideoStreamClient::handleConnectionSuccess);
-    connect(m_worker, &ClientWorker::connectionFailed, this, &VideoStreamClient::handleConnectionFailed);
-    connect(m_worker, &ClientWorker::playInfoReceived, this, &VideoStreamClient::handlePlayInfo);
-
-
+    if (m_isFullScreen) {
+        showNormal();
+        if (!m_isLeftPanelCollapsed) {
+            m_leftPanelWidget->show();
+        }
+        m_toggleButton->show();
+        statusBar()->show();
+        m_mainLayout->setContentsMargins(15, 15, 15, 15);
+        m_fullscreenBtn->setIcon(style()->standardIcon(QStyle::SP_TitleBarMaxButton));
+        m_isFullScreen = false;
+    }
+    else {
+        m_originalGeometry = this->geometry();
+        m_leftPanelWidget->hide();
+        m_toggleButton->hide();
+        statusBar()->hide();
+        m_mainLayout->setContentsMargins(0, 0, 0, 0);
+        showFullScreen();
+        m_fullscreenBtn->setIcon(style()->standardIcon(QStyle::SP_TitleBarNormalButton));
+        m_isFullScreen = true;
+    }
 }
 
 void VideoStreamClient::resetPlaybackUI()
@@ -263,29 +346,18 @@ void VideoStreamClient::resetPlaybackUI()
 
     m_playBtn->setEnabled(false);
     m_videoList->clear();
-
     m_videoLabel->clear();
-
     m_videoLabel->setText("请连接服务器并选择一个视频源");
-
     m_videoLabel->setStyleSheet("background-color: black; color: white; font-size: 16px;");
-
     m_progressSlider->setEnabled(false);
     m_progressSlider->setValue(0);
-
     m_playPauseBtn->setEnabled(false);
-    m_playPauseBtn->setChecked(false); // 确保是“播放”图标
+    m_playPauseBtn->setChecked(false);
     m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
-
     m_timeLabel->setText("00:00 / 00:00");
-
     m_latencyIndicatorLabel->setText("时延状态: 未知");
-    m_latencyIndicatorLabel->setStyleSheet(R"(
-        QLabel { background-color: gray; color: white; /* ... */ }
-    )");
-
+    m_latencyIndicatorLabel->setStyleSheet("background-color: #e8f0fe; color: #007bff; padding: 5px; border: 1px solid #dcdfe6; border-radius: 5px; font-weight: bold; font-size: 14px;");
     m_currentDurationSec = 0.0;
-
     if (m_debugWindow) {
         m_debugWindow->bitrateChart()->clearChart();
         m_debugWindow->fpsChart()->clearChart();
@@ -297,152 +369,88 @@ void VideoStreamClient::resetPlaybackUI()
     m_currentLatencyMs.store(0.0);
 }
 
-// "连接"按钮的槽函数
 void VideoStreamClient::onConnectBtnClicked()
 {
     if (m_connectBtn->text() == "连接")
     {
-        // --- 执行连接逻辑 ---
         QString ip = m_ipEntry->text();
         if (ip.isEmpty()) {
             QMessageBox::warning(this, "错误", "请输入服务器IP地址。");
             return;
         }
-
         statusBar()->showMessage("状态: 正在连接 " + ip + "...");
         m_connectBtn->setEnabled(false);
-
         QMetaObject::invokeMethod(m_worker, "connectToServer", Qt::QueuedConnection,
             Q_ARG(QString, ip),
             Q_ARG(quint16, AppConfig::CONTROL_PORT));
     }
     else
     {
-        // --- 执行断开逻辑 ---
         qDebug() << "[Main] 用户请求断开连接。";
-        // 安全地请求工作线程执行断开操作
         QMetaObject::invokeMethod(m_worker, "disconnectFromServer", Qt::QueuedConnection);
-
-        // 立即重置UI状态
         resetPlaybackUI();
     }
 }
 
-
 void VideoStreamClient::onPlayBtnClicked()
 {
-    // 获取当前选中的那一项的指针
     QListWidgetItem* currentItem = m_videoList->currentItem();
-
-    // 检查指针是否有效
     if (!currentItem) {
-        // 如果没有选中任何项，currentItem 会是 nullptr
         QMessageBox::warning(this, "提示", "请先选择一个播放项。");
         return;
     }
-
-    // 直接从有效的指针获取文本
     QString source = currentItem->text();
-
     statusBar()->showMessage("状态: 正在请求播放 " + source + "...");
-    // 在请求播放前，先清空所有缓冲区
     m_masterClock->reset();
     m_videoJitterBuffer->reset();
     m_audioJitterBuffer->reset();
     m_decodedFrameBuffer->reset();
-
-    // 启动解码和播放循环
     QMetaObject::invokeMethod(m_videoDecoder, "startDecoding", Qt::QueuedConnection);
     QMetaObject::invokeMethod(m_audioPlayer, "startPlaying", Qt::QueuedConnection);
-    // 安全地调用工作线程中的方法
     QMetaObject::invokeMethod(m_worker, "requestPlay", Qt::QueuedConnection, Q_ARG(QString, source));
 }
 
-// 处理连接成功的槽函数
 void VideoStreamClient::handleConnectionSuccess(const QList<QString>& videoList)
 {
     statusBar()->showMessage("状态: 连接成功，请选择播放项。");
     m_connectBtn->setText("断开");
     m_connectBtn->setEnabled(true);
     m_playBtn->setEnabled(true);
-
     m_videoList->clear();
     m_videoList->addItems(videoList);
 }
 
-// 处理连接失败的槽函数
 void VideoStreamClient::handleConnectionFailed(const QString& reason)
 {
     statusBar()->showMessage("状态: 连接失败 - " + reason);
     m_connectBtn->setText("连接");
     m_connectBtn->setEnabled(true);
     m_playBtn->setEnabled(false);
-
     QMessageBox::critical(this, "连接失败", reason);
-    resetPlaybackUI(); // 使用新函数来重置UI
+    resetPlaybackUI();
 }
 
-// 处理收到播放信息的槽函数
 void VideoStreamClient::handlePlayInfo(double duration)
 {
     statusBar()->showMessage("状态: 正在播放...");
-    // 在这里我们可以根据 duration 来设置进度条等UI
-
     if (duration > 0) {
         m_timeLabel->setText(QString("00:00 / %1").arg(QTime(0, 0).addSecs(static_cast<int>(duration)).toString("mm:ss")));
         m_progressSlider->setEnabled(true);
         m_progressSlider->setRange(0, 1000);
-        m_progressSlider->setValue(0); // 播放开始时，重置为0
-
-        m_playPauseBtn->setEnabled(true); // 启用播放/暂停按钮
-        m_playPauseBtn->setChecked(true); // 默认是播放状态，所以按钮是“已选中”(显示暂停图标)
+        m_progressSlider->setValue(0);
+        m_playPauseBtn->setEnabled(true);
+        m_playPauseBtn->setChecked(true);
         m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
-        m_currentDurationSec = duration; // 保存总时长
+        m_currentDurationSec = duration;
     }
     else {
         m_timeLabel->setText("直播");
         m_progressSlider->setEnabled(false);
-        m_progressSlider->setRange(0, 0); // 直播时禁用范围
+        m_progressSlider->setRange(0, 0);
     }
     qDebug() << "[Main] 收到播放信息，视频时长:" << duration << "秒";
 }
 
-// 全屏切换的槽函数
-void VideoStreamClient::toggleFullScreen()
-{
-    if (m_isFullScreen) {
-        // --- 退出全屏 ---
-        showNormal();
-
-        m_leftPanelWidget->show();
-        statusBar()->show();
-
-        m_mainLayout->setStretchFactor(m_leftPanelWidget, 1);
-        m_mainLayout->setStretchFactor(m_videoPlayerContainer, 3);
-
-        m_fullscreenBtn->setIcon(style()->standardIcon(QStyle::SP_TitleBarMaxButton));
-
-        m_isFullScreen = false;
-    }
-    else {
-        // --- 进入全屏 ---
-        m_originalGeometry = this->geometry();
-
-        m_leftPanelWidget->hide();
-        statusBar()->hide();
-
-        m_mainLayout->setStretchFactor(m_leftPanelWidget, 0);
-        m_mainLayout->setStretchFactor(m_videoPlayerContainer, 1);
-
-        showFullScreen();
-
-        m_fullscreenBtn->setIcon(style()->standardIcon(QStyle::SP_TitleBarNormalButton));
-
-        m_isFullScreen = true;
-    }
-}
-
-// 音量改变的槽函数
 void VideoStreamClient::onVolumeChanged(int value)
 {
     double volume = value / 100.0;
@@ -451,7 +459,6 @@ void VideoStreamClient::onVolumeChanged(int value)
     }
 }
 
-// 键盘事件处理器
 void VideoStreamClient::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Escape && m_isFullScreen) {
@@ -462,17 +469,12 @@ void VideoStreamClient::keyPressEvent(QKeyEvent* event)
     }
 }
 
-// 窗口关闭事件处理器
 void VideoStreamClient::closeEvent(QCloseEvent* event)
 {
     qDebug() << "窗口关闭事件触发，执行清理...";
-
-    // 安全地请求断开连接并停止所有后台活动
     if (m_worker) {
         QMetaObject::invokeMethod(m_worker, "disconnectFromServer", Qt::QueuedConnection);
     }
-
-    // 调用基类的 closeEvent 来真正关闭窗口
     QMainWindow::closeEvent(event);
 }
 
@@ -494,28 +496,19 @@ void VideoStreamClient::onPlayPauseBtnClicked()
 
 void VideoStreamClient::onSliderReleased()
 {
-    if (m_currentDurationSec <= 0) return; // 直播或无效时长，不支持seek
+    if (m_currentDurationSec <= 0) return;
 
-    // 计算目标时间
     double position = m_progressSlider->value() / 1000.0;
     double targetSec = position * m_currentDurationSec;
-
     qDebug() << "[Main] 用户请求跳转到" << targetSec << "秒";
 
-    // --- 【关键】重置客户端状态 ---
-    // 1. 清空所有缓冲区
     m_videoJitterBuffer->reset();
     m_audioJitterBuffer->reset();
     m_decodedFrameBuffer->reset();
-    // 2. 重置时钟
     m_masterClock->reset();
-    // 3. （可选）显示一个“加载中”的提示
     m_videoLabel->setText("正在跳转...");
-
-    // 4. 向工作线程发送 seek 请求
     QMetaObject::invokeMethod(m_worker, "requestSeek", Qt::QueuedConnection, Q_ARG(double, targetSec));
 
-    // 如果当前是暂停状态，恢复播放
     if (m_masterClock->is_paused()) {
         onPlayPauseBtnClicked();
     }
@@ -525,7 +518,6 @@ void VideoStreamClient::showDebugWindow()
 {
     if (!m_debugWindow) {
         m_debugWindow = new DebugWindow(this);
-        // 连接关闭信号
         connect(m_debugWindow, &DebugWindow::closed, this, &VideoStreamClient::onDebugWindowClosed);
     }
     m_debugWindow->show();
@@ -534,14 +526,11 @@ void VideoStreamClient::showDebugWindow()
 
 void VideoStreamClient::onDebugWindowClosed()
 {
-    // 当调试窗口关闭时，将指针置空
     m_debugWindow = nullptr;
 }
 
-
 void VideoStreamClient::updateStatus()
 {
-    //计算 FPS
     qint64 now = QDateTime::currentMSecsSinceEpoch();
     qint64 timeDiff = now - m_lastFpsUpdateTime;
     if (timeDiff > 0) {
@@ -550,16 +539,11 @@ void VideoStreamClient::updateStatus()
         m_lastFpsUpdateTime = now;
     }
 
-    // 获取网络统计数据 
     NetworkStats stats = m_networkMonitor->get_statistics();
     double currentBitrateKbps = stats.bitrate_bps / 1000.0;
-
-
-
     double latency = m_currentLatencyMs.load();
-    // 更新图表 (如果调试窗口存在) 
+
     if (m_debugWindow) {
-        // 只有在播放时才更新图表
         if (m_masterClock->get_time_ms() >= 0 && !m_masterClock->is_paused()) {
             m_debugWindow->bitrateChart()->updateChart(currentBitrateKbps);
             m_debugWindow->fpsChart()->updateChart(m_currentFps);
@@ -567,16 +551,15 @@ void VideoStreamClient::updateStatus()
         }
     }
 
-    // 更新时延状态标签
     if (m_masterClock->get_time_ms() >= 0 && !m_masterClock->is_paused()) {
         QString styleSheet;
-        if (latency < 80) { // 优秀
-            styleSheet = "background-color: green; color: white; padding: 5px; border-radius: 5px; font-weight: bold;";
+        if (latency < 80) {
+            styleSheet = "background-color: lightgreen; color: black; padding: 5px; border-radius: 5px; font-weight: bold;";
         }
-        else if (latency < 200) { // 一般
+        else if (latency < 200) {
             styleSheet = "background-color: orange; color: black; padding: 5px; border-radius: 5px; font-weight: bold;";
         }
-        else { // 较差
+        else {
             styleSheet = "background-color: red; color: white; padding: 5px; border-radius: 5px; font-weight: bold;";
         }
         m_latencyIndicatorLabel->setStyleSheet(styleSheet);
@@ -584,124 +567,70 @@ void VideoStreamClient::updateStatus()
     }
 }
 
-
 void VideoStreamClient::onRenderTimerTimeout()
 {
-    // 从主时钟获取当前的播放时间戳
     int64_t target_pts = m_masterClock->get_time_ms();
     if (target_pts < 0) {
-        // 时钟还未启动，直接返回
         return;
     }
 
-    // 根据时间戳从解码帧缓冲中获取最匹配的帧
-    // get_frame 现在返回一个包裹着 AVFrame 的 unique_ptr<DecodedFrame>
     auto decoded_frame_wrapper = m_decodedFrameBuffer->get_frame(target_pts);
     if (!decoded_frame_wrapper) {
-        // 缓冲中没有合适的帧（可能缓冲为空，或者所有帧都太新了）
+        decoded_frame_wrapper = m_decodedFrameBuffer->get_interpolated_frame(target_pts);
+    }
+
+    if (!decoded_frame_wrapper) {
         return;
     }
 
-    // 从包装器中获取底层的 AVFrame 指针
-    // .get() 方法返回原始指针，但所有权仍在 unique_ptr 手中
     AVFrame* frame_to_render = decoded_frame_wrapper->frame.get();
-
     if (frame_to_render) {
-
         double latency = static_cast<double>(target_pts - frame_to_render->pts);
-        // 时延不应该是负数
         m_currentLatencyMs.store(std::max(0.0, latency));
     }
-    // --- 新增结束 ---
 
     if (!frame_to_render || !frame_to_render->data[0]) {
-        // 确保帧和其数据是有效的
         return;
     }
 
-    // 初始化或获取缓存的 SwsContext，用于颜色空间转换
-    //    这个上下文会被 FFmpeg 内部缓存，避免每次都重新计算转换参数，提高效率。
-    m_swsContext = sws_getCachedContext(
-        m_swsContext,                          // 传入现有的 context，如果没有则为 nullptr
-        frame_to_render->width,                // 输入宽度
-        frame_to_render->height,               // 输入高度
-        (AVPixelFormat)frame_to_render->format,// 输入像素格式 (例如 AV_PIX_FMT_YUV420P)
-        frame_to_render->width,                // 输出宽度 (保持不变)
-        frame_to_render->height,               // 输出高度 (保持不变)
-        AV_PIX_FMT_RGB24,                      // 输出像素格式 (QImage 常用)
-        SWS_BILINEAR,                          // 缩放算法 (这里不缩放，但仍需指定)
-        nullptr,                               // 输入滤镜
-        nullptr,                               // 输出滤镜
-        nullptr                                // 算法参数
-    );
+    m_swsContext = sws_getCachedContext(m_swsContext,
+        frame_to_render->width, frame_to_render->height, (AVPixelFormat)frame_to_render->format,
+        frame_to_render->width, frame_to_render->height, AV_PIX_FMT_RGB24,
+        SWS_BILINEAR, nullptr, nullptr, nullptr);
 
     if (!m_swsContext) {
         qDebug() << "[Render] 无法创建或获取 sws_scale 上下文。";
         return;
     }
 
-    // 准备输出缓冲区 (用于存放转换后的 RGB 数据)
-    int rgb_buffer_size = av_image_get_buffer_size(
-        AV_PIX_FMT_RGB24,
-        frame_to_render->width,
-        frame_to_render->height,
-        1 // 字节对齐，1表示不需要特殊对齐
-    );
+    int rgb_buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGB24, frame_to_render->width, frame_to_render->height, 1);
     if (m_rgbBuffer.size() < static_cast<size_t>(rgb_buffer_size)) {
         m_rgbBuffer.resize(rgb_buffer_size);
     }
 
-    // 创建一个指向输出缓冲区的指针数组
     uint8_t* dest_data[1] = { m_rgbBuffer.data() };
-    // 创建一个描述输出数据每行字节数的数组
-    int dest_linesize[1] = { frame_to_render->width * 3 }; // RGB24 = 3字节/像素
+    int dest_linesize[1] = { frame_to_render->width * 3 };
 
-    // 执行颜色空间转换！
-    // 这是最关键的一步。我们直接使用 AVFrame 中的 data 和 linesize 数组。
-    sws_scale(
-        m_swsContext,
-        (const uint8_t* const*)frame_to_render->data, // 输入的 Y, U, V 数据指针数组
-        frame_to_render->linesize,                    // 输入的 Y, U, V 各自的 linesize
-        0,                                            // 起始扫描线
-        frame_to_render->height,                      // 处理的扫描线数量
-        dest_data,                                    // 输出的数据指针数组
-        dest_linesize                                 // 输出的 linesize 数组
-    );
+    sws_scale(m_swsContext,
+        (const uint8_t* const*)frame_to_render->data, frame_to_render->linesize,
+        0, frame_to_render->height,
+        dest_data, dest_linesize);
 
-    // 将转换后的 RGB 数据包装成 QImage
-    // 注意：这里的 QImage 只是引用了 m_rgbBuffer 的内存，没有进行拷贝。
-    QImage image(
-        m_rgbBuffer.data(),
-        frame_to_render->width,
-        frame_to_render->height,
-        dest_linesize[0], // 使用计算出的 linesize
-        QImage::Format_RGB888
-    );
-
-
-
+    QImage image(m_rgbBuffer.data(), frame_to_render->width, frame_to_render->height, dest_linesize[0], QImage::Format_RGB888);
     QPixmap pixmap = QPixmap::fromImage(image.copy());
-
     QPixmap scaled_pixmap = pixmap.scaled(m_videoLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-
     m_videoLabel->setPixmap(scaled_pixmap);
     m_frameCount++;
-    // 更新UI上的时间显示和进度条
-      if (m_currentDurationSec > 0 && !m_progressSlider->isSliderDown())
+
+    if (m_currentDurationSec > 0 && !m_progressSlider->isSliderDown())
     {
         double current_pos_sec = target_pts / 1000.0;
-        
-        // 更新进度条 (范围 0-1000)
         int slider_value = static_cast<int>((current_pos_sec / m_currentDurationSec) * 1000.0);
         m_progressSlider->setValue(slider_value);
-        
-        // 更新时间标签
         QTime current_time(0, 0);
         current_time = current_time.addSecs(static_cast<int>(current_pos_sec));
-        
         QTime total_time(0, 0);
         total_time = total_time.addSecs(static_cast<int>(m_currentDurationSec));
-
         m_timeLabel->setText(QString("%1 / %2")
             .arg(current_time.toString("mm:ss"))
             .arg(total_time.toString("mm:ss")));

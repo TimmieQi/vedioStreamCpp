@@ -24,9 +24,6 @@
     <ClCompile Include="AdaptiveStreamController.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ControlChannelServer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="StreamerManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -36,15 +33,15 @@
     <ClCompile Include="CameraStreamer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ControlChannelServer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileSystemManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="AdaptiveStreamController.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ControlChannelServer.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="IStreamer.h">
@@ -57,6 +54,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="CameraStreamer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sharedLib\include\ByteSwap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sharedLib\include\shared_config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ControlChannelServer.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

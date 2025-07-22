@@ -117,6 +117,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>D:\Vcpkg\vcpkg\installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>msquic.lib;bcrypt.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -145,6 +146,8 @@
     <ClCompile Include="VideoStreamServer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\sharedLib\include\ByteSwap.h" />
+    <ClInclude Include="..\sharedLib\include\shared_config.h" />
     <ClInclude Include="AdaptiveStreamController.h" />
     <ClInclude Include="CameraStreamer.h" />
     <ClInclude Include="ControlChannelServer.h" />

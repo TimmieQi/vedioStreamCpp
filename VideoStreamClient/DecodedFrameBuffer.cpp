@@ -129,6 +129,8 @@ AVFrame* mats_yuv_to_avframe(const cv::Mat& y, const cv::Mat& u, const cv::Mat& 
 }
 
 // 【核心实现】使用光流法进行插值 (最终优化版)
+// 【核心实现】使用简单的线性插值进行补帧
+// 【核心实现】使用光流法进行插值 (最终优化版)
 AVFrame* DecodedFrameBuffer::interpolate(const AVFrame* prev, const AVFrame* next, double factor) {
     if (prev->format != AV_PIX_FMT_YUV420P || next->format != AV_PIX_FMT_YUV420P) {
         return nullptr;
@@ -157,7 +159,19 @@ AVFrame* DecodedFrameBuffer::interpolate(const AVFrame* prev, const AVFrame* nex
 
     // 3. 在降维后的Y通道上计算光流
     cv::Mat flow_small;
-    cv::calcOpticalFlowFarneback(prev_y_small, next_y_small, flow_small, 0.5, 3, 10, 3, 5, 1.1, 0);
+    // 调整光流算法的参数
+    cv::calcOpticalFlowFarneback(
+        prev_y_small,
+        next_y_small,
+        flow_small,
+        0.3,  // pyr_scale: 图像金字塔每层之间的缩放比例，增大可以覆盖更大的运动范围
+        3,    // levels: 金字塔的层数，增加层数可以处理更大的运动，但会增加计算量
+        15,   // winsize: 窗口大小，增大可以使光流计算更平滑，但可能会模糊细节
+        3,    // iterations: 每层金字塔的迭代次数，增加迭代次数可以提高精度，但会增加计算量
+        10,    // poly_n: 用于拟合的像素邻域大小，增大可以使光流更平滑
+        1.2,  // poly_sigma: 高斯标准差，用于平滑像素邻域
+        0     // flags: 计算方法标志
+    );
 
     // 4. 在降维尺寸上创建映射图
     cv::Mat map1(small_size, CV_32FC2);

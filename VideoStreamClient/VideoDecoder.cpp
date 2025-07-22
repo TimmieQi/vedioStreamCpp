@@ -101,7 +101,7 @@ void VideoDecoder::decodeLoop()
         auto mediaPacket = m_inputBuffer.get_packet();
         if (!mediaPacket) {
             // JitterBuffer 为空或者当前期望的包丢失，短暂等待
-            QThread::msleep(5);
+            QThread::msleep(1);
             continue;
         }
 

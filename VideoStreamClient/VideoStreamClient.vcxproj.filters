@@ -75,9 +75,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="shared_config.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MasterClock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -91,6 +88,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MediaPacket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sharedLib\include\shared_config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

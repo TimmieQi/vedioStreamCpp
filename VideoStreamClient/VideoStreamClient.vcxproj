@@ -62,7 +62,8 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
-      <AdditionalDependencies>avcodec.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;portaudio.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>avcodec.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;portaudio.lib;msquic.lib;bcrypt.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\Vcpkg\vcpkg\installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\sharedLib\include;D:\Vcpkg\vcpkg\installed\x64-windows\include\opencv4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -118,12 +119,12 @@
     <QtMoc Include="ClickableSlider.h" />
     <QtMoc Include="ChartWidget.h" />
     <QtMoc Include="DebugWindow.h" />
+    <ClInclude Include="..\sharedLib\include\shared_config.h" />
     <ClInclude Include="DecodedFrameBuffer.h" />
     <ClInclude Include="JitterBuffer.h" />
     <ClInclude Include="MasterClock.h" />
     <ClInclude Include="MediaPacket.h" />
     <ClInclude Include="NetworkMonitor.h" />
-    <ClInclude Include="shared_config.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
