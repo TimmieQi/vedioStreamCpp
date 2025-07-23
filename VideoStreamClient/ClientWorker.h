@@ -49,7 +49,7 @@ signals:
     void connectionSuccess(const QList<QString>& videoList);
     void connectionFailed(const QString& reason);
     void playInfoReceived(double duration);
-
+    void latencyUpdated(double latencyMs);
 private:
     QHostAddress m_serverAddress;
 

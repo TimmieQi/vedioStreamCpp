@@ -7,7 +7,7 @@ namespace AppConfig {
     constexpr int VIDEO_PORT = 9999;
     constexpr int AUDIO_PORT = 9997;
     constexpr int CONTROL_PORT = 9998;
-
+    constexpr int FEC_PORT = 9996;
     // --- 视频流参数 ---
     constexpr const char* VIDEO_CODEC = "hevc";
 

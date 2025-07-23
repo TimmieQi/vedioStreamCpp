@@ -136,84 +136,68 @@ AVFrame* DecodedFrameBuffer::interpolate(const AVFrame* prev, const AVFrame* nex
         return nullptr;
     }
 
-    // 1. 【性能优化】直接在降维后的图像上完成所有操作
-    const double scale_factor = 0.5; // 在一半的尺寸上操作
-    cv::Size small_size(prev->width * scale_factor, prev->height * scale_factor);
-    cv::Size small_size_uv(prev->width / 2 * scale_factor, prev->height / 2 * scale_factor);
+    // 分配新的AVFrame
+    AVFrame* interpolated_frame = av_frame_alloc();
+    if (!interpolated_frame) {
+        return nullptr;
+    }
 
-    cv::Mat prev_y, prev_u, prev_v;
-    cv::Mat next_y, next_u, next_v;
-    avframe_to_mats_yuv(prev, prev_y, prev_u, prev_v);
-    avframe_to_mats_yuv(next, next_y, next_u, next_v);
+    interpolated_frame->width = prev->width;
+    interpolated_frame->height = prev->height;
+    interpolated_frame->format = AV_PIX_FMT_YUV420P;
 
-    cv::Mat prev_y_small, prev_u_small, prev_v_small;
-    cv::Mat next_y_small, next_u_small, next_v_small;
+    if (av_frame_get_buffer(interpolated_frame, 32) < 0) {
+        av_frame_free(&interpolated_frame);
+        return nullptr;
+    }
 
-    // 2. 将所有通道降维
-    cv::resize(prev_y, prev_y_small, small_size, 0, 0, cv::INTER_LINEAR);
-    cv::resize(prev_u, prev_u_small, small_size_uv, 0, 0, cv::INTER_LINEAR);
-    cv::resize(prev_v, prev_v_small, small_size_uv, 0, 0, cv::INTER_LINEAR);
-    cv::resize(next_y, next_y_small, small_size, 0, 0, cv::INTER_LINEAR);
-    cv::resize(next_u, next_u_small, small_size_uv, 0, 0, cv::INTER_LINEAR);
-    cv::resize(next_v, next_v_small, small_size_uv, 0, 0, cv::INTER_LINEAR);
+    // 对Y通道进行带边缘检测的插值
+    for (int y = 1; y < prev->height - 1; ++y) {
+        for (int x = 1; x < prev->width - 1; ++x) {
+            // 计算梯度来检测边缘
+            int gx_prev = std::abs(prev->data[0][y * prev->linesize[0] + x + 1] - prev->data[0][y * prev->linesize[0] + x - 1]);
+            int gy_prev = std::abs(prev->data[0][(y + 1) * prev->linesize[0] + x] - prev->data[0][(y - 1) * prev->linesize[0] + x]);
 
-    // 3. 在降维后的Y通道上计算光流
-    cv::Mat flow_small;
-    // 调整光流算法的参数
-    cv::calcOpticalFlowFarneback(
-        prev_y_small,
-        next_y_small,
-        flow_small,
-        0.3,  // pyr_scale: 图像金字塔每层之间的缩放比例，增大可以覆盖更大的运动范围
-        3,    // levels: 金字塔的层数，增加层数可以处理更大的运动，但会增加计算量
-        15,   // winsize: 窗口大小，增大可以使光流计算更平滑，但可能会模糊细节
-        3,    // iterations: 每层金字塔的迭代次数，增加迭代次数可以提高精度，但会增加计算量
-        10,    // poly_n: 用于拟合的像素邻域大小，增大可以使光流更平滑
-        1.2,  // poly_sigma: 高斯标准差，用于平滑像素邻域
-        0     // flags: 计算方法标志
-    );
+            int gx_next = std::abs(next->data[0][y * next->linesize[0] + x + 1] - next->data[0][y * next->linesize[0] + x - 1]);
+            int gy_next = std::abs(next->data[0][(y + 1) * next->linesize[0] + x] - next->data[0][(y - 1) * next->linesize[0] + x]);
 
-    // 4. 在降维尺寸上创建映射图
-    cv::Mat map1(small_size, CV_32FC2);
-    cv::Mat map2(small_size, CV_32FC2);
-    for (int y = 0; y < small_size.height; ++y) {
-        for (int x = 0; x < small_size.width; ++x) {
-            cv::Point2f flow_at_point = flow_small.at<cv::Point2f>(y, x);
-            // 注意：这里的运动矢量已经是小尺寸上的了，不需要再缩放
-            map1.at<cv::Point2f>(y, x) = cv::Point2f(x + flow_at_point.x * factor, y + flow_at_point.y * factor);
-            map2.at<cv::Point2f>(y, x) = cv::Point2f(x - flow_at_point.x * (1.0 - factor), y - flow_at_point.y * (1.0 - factor));
+            int gradient_prev = std::max(gx_prev, gy_prev);
+            int gradient_next = std::max(gx_next, gy_next);
+
+            int prev_value = prev->data[0][y * prev->linesize[0] + x];
+            int next_value = next->data[0][y * next->linesize[0] + x];
+
+            // 在边缘区域使用加权更保守的插值，减少模糊
+            if (gradient_prev > 20 || gradient_next > 20) {
+                double edge_factor = factor * 0.7; // 减少边缘处的插值强度
+                interpolated_frame->data[0][y * interpolated_frame->linesize[0] + x] =
+                    static_cast<uint8_t>(prev_value + edge_factor * (next_value - prev_value));
+            }
+            else {
+                // 非边缘区域使用正常插值
+                interpolated_frame->data[0][y * interpolated_frame->linesize[0] + x] =
+                    static_cast<uint8_t>(prev_value + factor * (next_value - prev_value));
+            }
         }
     }
 
-    // 5. 在降维尺寸上扭曲和融合所有通道
-    cv::Mat warped_prev_y, warped_next_y, final_y_small;
-    cv::remap(prev_y_small, warped_prev_y, map1, cv::Mat(), cv::INTER_LINEAR);
-    cv::remap(next_y_small, warped_next_y, map2, cv::Mat(), cv::INTER_LINEAR);
-    cv::addWeighted(warped_prev_y, 1.0 - factor, warped_next_y, factor, 0.0, final_y_small);
+    // 对U通道进行线性插值
+    for (int y = 0; y < prev->height / 2; ++y) {
+        for (int x = 0; x < prev->width / 2; ++x) {
+            int prev_value = prev->data[1][y * prev->linesize[1] + x];
+            int next_value = next->data[1][y * next->linesize[1] + x];
+            interpolated_frame->data[1][y * interpolated_frame->linesize[1] + x] = static_cast<uint8_t>(prev_value + factor * (next_value - prev_value));
+        }
+    }
 
-    // 为U/V通道创建映射图
-    cv::Mat map1_uv, map2_uv;
-    cv::resize(map1, map1_uv, small_size_uv, 0, 0, cv::INTER_LINEAR);
-    cv::resize(map2, map2_uv, small_size_uv, 0, 0, cv::INTER_LINEAR);
-    map1_uv *= 0.5; // 映射图坐标也要缩放
-    map2_uv *= 0.5;
+    // 对V通道进行线性插值
+    for (int y = 0; y < prev->height / 2; ++y) {
+        for (int x = 0; x < prev->width / 2; ++x) {
+            int prev_value = prev->data[2][y * prev->linesize[2] + x];
+            int next_value = next->data[2][y * next->linesize[2] + x];
+            interpolated_frame->data[2][y * interpolated_frame->linesize[2] + x] = static_cast<uint8_t>(prev_value + factor * (next_value - prev_value));
+        }
+    }
 
-    cv::Mat warped_prev_u, warped_next_u, final_u_small;
-    cv::remap(prev_u_small, warped_prev_u, map1_uv, cv::Mat(), cv::INTER_LINEAR);
-    cv::remap(next_u_small, warped_next_u, map2_uv, cv::Mat(), cv::INTER_LINEAR);
-    cv::addWeighted(warped_prev_u, 1.0 - factor, warped_next_u, factor, 0.0, final_u_small);
-
-    cv::Mat warped_prev_v, warped_next_v, final_v_small;
-    cv::remap(prev_v_small, warped_prev_v, map1_uv, cv::Mat(), cv::INTER_LINEAR);
-    cv::remap(next_v_small, warped_next_v, map2_uv, cv::Mat(), cv::INTER_LINEAR);
-    cv::addWeighted(warped_prev_v, 1.0 - factor, warped_next_v, factor, 0.0, final_v_small);
-
-    // 6. 【性能优化】只在最后将融合后的结果升维
-    cv::Mat final_y, final_u, final_v;
-    cv::resize(final_y_small, final_y, prev_y.size(), 0, 0, cv::INTER_LINEAR);
-    cv::resize(final_u_small, final_u, prev_u.size(), 0, 0, cv::INTER_LINEAR);
-    cv::resize(final_v_small, final_v, prev_v.size(), 0, 0, cv::INTER_LINEAR);
-
-    // 7. 将最终的 YUV Mat 转换回 AVFrame 并返回
-    return mats_yuv_to_avframe(final_y, final_u, final_v, prev->width, prev->height);
+    return interpolated_frame;
 }

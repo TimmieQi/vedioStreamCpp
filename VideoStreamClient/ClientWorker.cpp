@@ -143,11 +143,25 @@ void ClientWorker::onControlSocketReadyRead()
         }
         else if (responseDoc.isObject()) {
             QJsonObject obj = responseDoc.object();
+            QString command = obj["command"].toString();
             if (obj.contains("command") && obj["command"].toString() == "play_info") {
                 double duration = obj.value("duration").toDouble(0.0);
                 emit playInfoReceived(duration);
                 startMediaReceivers();
                 should_start_heartbeat = true; // 标记需要启动/继续心跳
+            }
+            else if (command == "heartbeat_reply") {
+                if (obj.contains("client_ts")) {
+                    qint64 client_ts = obj["client_ts"].toVariant().toLongLong();
+                    qint64 now_ts = QDateTime::currentMSecsSinceEpoch();
+                    double rtt = static_cast<double>(now_ts - client_ts);
+
+                    // 单向延迟通常估计为 RTT 的一半
+                    double one_way_latency = rtt / 2.0;
+
+                    // 发射信号，将计算出的延迟传递给UI线程
+                    emit latencyUpdated(one_way_latency);
+                }
             }
         }
         else {
@@ -176,7 +190,7 @@ void ClientWorker::sendHeartbeat()
     heartbeatObject["command"] = "heartbeat";
     heartbeatObject["loss_rate"] = stats.loss_rate;
     heartbeatObject["bitrate_bps"] = stats.bitrate_bps;
-
+    heartbeatObject["client_ts"] = QDateTime::currentMSecsSinceEpoch();
     QJsonDocument doc(heartbeatObject);
     m_controlSocket->writeDatagram(doc.toJson(QJsonDocument::Compact), m_serverAddress, AppConfig::CONTROL_PORT);
 }

@@ -232,6 +232,13 @@ void VideoStreamClient::initConnections()
     connect(m_worker, &ClientWorker::connectionSuccess, this, &VideoStreamClient::handleConnectionSuccess);
     connect(m_worker, &ClientWorker::connectionFailed, this, &VideoStreamClient::handleConnectionFailed);
     connect(m_worker, &ClientWorker::playInfoReceived, this, &VideoStreamClient::handlePlayInfo);
+    connect(m_worker, &ClientWorker::latencyUpdated, this, &VideoStreamClient::onLatencyUpdated);
+}
+
+void VideoStreamClient::onLatencyUpdated(double latencyMs)
+{
+    // 这个槽函数由 ClientWorker 的线程触发，所以直接更新原子变量是线程安全的
+    m_currentLatencyMs.store(latencyMs);
 }
 
 void VideoStreamClient::toggleLeftPanel()
@@ -584,10 +591,7 @@ void VideoStreamClient::onRenderTimerTimeout()
     }
 
     AVFrame* frame_to_render = decoded_frame_wrapper->frame.get();
-    if (frame_to_render) {
-        double latency = static_cast<double>(target_pts - frame_to_render->pts);
-        m_currentLatencyMs.store(std::max(0.0, latency));
-    }
+
 
     if (!frame_to_render || !frame_to_render->data[0]) {
         return;

@@ -118,4 +118,5 @@ private slots:
     void updateStatus();
     void toggleLeftPanel();
     void onAnimationStep();
+    void onLatencyUpdated(double latencyMs);
 };

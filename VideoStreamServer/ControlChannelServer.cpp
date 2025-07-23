@@ -69,6 +69,13 @@ void ControlChannelServer::handle_command(const nlohmann::json& command_json)
     else if (command_str == "heartbeat") {
         double loss_rate = command_json.value("loss_rate", 0.0);
         m_streamer_manager->get_controller()->update_strategy(loss_rate);
+        if (command_json.contains("client_ts")) {
+            nlohmann::json reply_json;
+            reply_json["command"] = "heartbeat_reply";
+            // 将客户端发来的时间戳原封不动地返回
+            reply_json["client_ts"] = command_json["client_ts"];
+            send_response(reply_json);
+        }
     }
     // "stop" 命令由 StreamerManager 的析构或新的 start_stream 调用隐式处理
 }
