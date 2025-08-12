@@ -1,0 +1,517 @@
+<FlowDocument xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" FontFamily="Segoe UI" FontSize="12">
+  <FlowDocument.Tag><![CDATA[{
+  "timestamp": "2025-08-03 13:24:12",
+  "files": {
+    "C:\\Users\\25938\\source\\repos\\VideoStream\\VideoStreamServer\\VideoStreamServer.vcxproj": {
+      "before": "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",
+      "after": "7VptU9s4EO7nm+l/8HnoQGaOGAjT9pqXDiSUyxzhpQH6JTOMYovgq235ZDkl9/IX7zfd6tV24pCkFLhr2w80tlYraffR7qOV/6k8e9Z4exsG1hjTxCdR096ubtkWjlzi+dGoaafsevO1/bb1/IfGKSW/YZdZHXyN0oCdIzrCLGna+6kfeLYFWiJ4umEsfuM4iXuDQ5RUQ9+lJCHXrOqS0PHwGAckxtQJkyHv5uxsbdVs0G5ZjS7D4SElaWwdoSEOmrYasE2ia3+UUsRggokUBvGyVqsbuUHq4abdwcN09NcHP6rt6B7Qp6CqJWQaTvElnwr/1zgNELsmNGwJJQ3HPEsJeCHtUdZ9weTe4wCjBC+YnpJ6iglK692+3L2v7UDFg1jurqktbbcVJ9dwDEIlYAEAAGU2KYD2MCBDFGQwvWwrnFzKHdbaflXdajgzrxWqfsWTT4R6EnS8Z8PRr5SEUneY+l7rz5+3d3dfvXw93Hw93N3a3H35M95EtW20ufN6q1bzrndxDaG/DVRFH6XmPSHsGIU4iZGLW5e+h0mfUYzCPqYQDBpOUUD1gr3gkU+J3Pt6R5iVbfGV3Skytcozdtm/Gte2ACRTqzxjvUQEFgv2l+fzrd+019c2zPvKerO5vm6dvLd+PLj1E5ZsFFoHv7MqkxFqvWK31jZ6faFOWa/jUwhlhE4qA6Ox4Zif0r98h2cOVkEqjAllllLTtNc2LtsqEp4idlMZ9EzAa8dxVcXKagyaEttyyoBTXGAhnFT+WtvQVhYLzoW1dVvHyUIXvWOLse58EuPWXhwHvivC6FRQEc3KNxcJFqMc+UOKqI+TFqMpbjiz71UHPcFzQoIEs9Z4e7eWbXr9Vgm3bxBFLsO0D5IXkQ95BnQX3nJJAdlp2xfcMYWLgg1mzFYIuI9nuGsIBF/Mch9uSIDBBCOKwpOY+aH/h3Clcs/c5ic1vEkkj2f0rwetkJ8ez2xfC1a7qwXoYmCe7WxSQgUyypUnqW+i43kudM9JQlNdIBeVJwFFec8YxEUGzBuSRU45pLa7A1wxL5SmmXuOMB1CH2KMfLR4CP16DXJjqRFk9rY4F2raxt3HhL0jaQTnmn0MpwCscnzTbqcJI6HgEvV20CZh7Ae44KzFfGQ+azljElqcs6jA3cNJgkbYkthEkQvT/MUf3djWOb5luSm/sVySBp4VEWYFBPI8tjIS9BP/LcBet+A/cZAL0UQIi5MYdKacEwWTqoGoI1edZz4Frntwy3DEj40GtC0gyWIDCrm5HfvAArBnLykNSU9Qgf4NhgNnwdarbQxt0tltDuSGcsILvHCawuUYWDUFsZK9jw0BXVkPDwhqZx6BzwLgaB3EkOZU2hXAiGYnbcDKSayelkL1Um64j2H1XhKn43WD1tlZrmySgoO/RdPmwuB3xLJCxPkSiBXR/5s2rLZiwbR8n/YQr9bpoMOrWNkZ7DP4SNHSsjTHT8mt9psB6OYnGesdpM9kcHzZ7XT3rMPTCxgmjFNOgSx+dPzos0H7orM3GG9vV18NfKmkvrahKn3i0A1JJ6f8Ac+P/7EF8XoUVBj8SNRHpDc/mzXqHWFIjXoBqecDohE45IhXb1viLxzwCy8lVwHRfueofYPdj+pUah6NwCnFMSUukBpCs7knrQ/d49pO/apzsH9xWL9qnxz3T44O6i825shXeIWgXJMZilNmKOByytSDMoOa0vRbI96DorYPsJRzk8wuf8Ke3y5VQBlD80FtyyM/+piZsZ8O+5MEfNaCOSRwmm842SszjUMcYah1yyJMV66Al7/U9Oc260mYMWW9MrNxnpLdEzhzkv/0+leDzrs0cvlCBcD4KgByatGlTcZi3YhRH3ioq8V0yaqkwXQyyJT1AvNoBObBSwL1+DtQDyI0DHD7pNfZO39HAn5fpNxV1mLsqmpX+D2+xhQumkyBsaTBdJqLeum9uc1SQcN5jE1RQtvutyEMJleF6FNG0SMUjVI4r/YZijwENxkJ89w43n4FTphuMu7d82SJHwUqkev6PC8/a+d6kipMlUL4ub1SL8rUO28Gl278cTQYi78QHBgKAuwNIIFvfpJ3GDku0ScBMA4SidNfIs6mUP02Ai827ppfZaXRBsCoIncMFx536cxyxvykI0Exv11DfxqDDbMXxDVnloEeLilBHshWK+8VJnkPL+WuwB8CHbhLD3CCu5ozo2ZSHQzu8MAjHGhh8nvqu1U+0NClk5iJn8gbo9iv7YiH/ATyfSv1rHN+FnkZTQoeJRjpDF1grNNQ+Crz81Nm5gxY3+OYuDo0EX4m9i+TFuYHt0cNfmV0Rk6grMUsuYTPyF4lDaaTTmSCTKzM/v93gfb5D7lQCw9PF2yz0xEY0QTK7IOiPQ/BpesYeA3/SAJyJaMEKAWtArnRBZPynm1gKBTJfkvJS91wJx5FOJCfYywehZOj5ccQ0uIs2kMRsLUllqGVL91h5puSxYuoVgcZ/TqDZHxOUZTwLy7yfWc+xCl+lyO8oOJv5r+Cal+Wiwb7E4b7n1BchdsUWThfobOc6ZUrPk9bpGEufBaMPAWeRdJl0FnQpwCcZWQLsFnQYRo0C8S7Wn6ROUu9WQSMGWoWLqtdETP5GZFGyN0XMdmNW+EaY87tcO4TJX0tnLs+0xdD5ppNXULO3puZL7xa/wI="
+    },
+    "C:\\Users\\25938\\source\\repos\\VideoStream\\VideoStreamServer\\VideoStreamServer.vcxproj.filters": {
+      "before": "vVbdbtMwGN31JN6h6u2UnyZtmuJ0U5I2UyWQQB27moQSx0k8JXawna4T4g6JW654Ah4BuIDXgYnHwP3dum5QsXZRHMlWfI6Pfc6XuPt7e87RuMhrI8Q4pqRbb6h6vYYIpDEmabdeiUSx60eHT/adF4yeIyhqJ5Tm/HTxfnPyvkQgvFvPhCifahqHGSpCrhYYMsppIlRICy1GI5TTEjGt4FGF81gzdN2sS+RazRkIVBwzWpXTrhwIcC4Qqw0IzKsYdetX3z9effrw88e32YSavJxXBL+p0CBGROAEI3b4thn4bbMdNBS/7baUptm2FFe3LMVwTaPXbhmuEQTvHG1t4mQNU8j+WCAy2Qh+CMsSQADlPR4DeHAA5EABsOzEKAE0zgGWLSvPQRQKEPJi0saOdgNiButoMzH3Sfv1+csG0jpmp9MybV2xO15PaUZ6U7HtvqdYRivw+i2j7wXeptIykMlb6sukmkxKy6QwIgURCLAcHvP4P3T8/vp+s1Oy2j3Xcj1LCWxdV5pQtxXba7uKbXpew2i4bk9vbCqFyRVDCmDFQFSUIM5TwKAhmwARJoClHKQ4AedlKhuaPgBDfAykZZLJA5QkBRfhCBQJZDiKKFEK/i/1jrZq2HX/+rlPixLn6NrCpzhGdCgYCoshYjJwqnTUDTvPXbLcw9u+0ZaYCyctB65JJAgaXnIZp+chCdPdkLhxWAo8QjMxPiWC0TzfDdeMA7Edypnu2fRcdiPBDwvEwoWQXZz6/Aj8LCQE5btzl6qe8SxkKH6Go7OXFYYnLCS8pEyW+Id4eZM8zT8Ff7N6tp6mZXG9I01zxOs0rVHca/StMw2W9tg69AJ5kaCtE6zkZ+vot9KzdfwVT8sv4OR/48y7FGh4EZbq49DNQvUaUpLgdPucd5aHx1G2WiQewLlaIhxt/jcqw/sH",
+      "after": "vVbdbtMwGOV6Eu8Q5XbKT5M2TXHaKWkbVAkkUMeuJqHEcRJPiR1st+uEuEPiliuegEcALuB1YOIxcH+3rhtUrF0UR7IVn+Njn/MlRwePHnlHk7JQxohxTElbremmqiACaYJJ1lZHItVc9ajz+MB7wegZgkI5prTgJ8v369P3JQLhbTUXonpiGBzmqIy4XmLIKKep0CEtjQSNUUErxIySxyNcJIZlmrYqkRXFGwhUPmV0VM26ciDEhUBMGRBYjBLUVi+/f7z89OHnj2/zCYq8vFcEvxmhQYKIwClGrPO2HnabdjOsad2m39DqdtPRfNNxNMu3rV6zYflWGL7zjI2J0zXMIPsTgch0I3gHVhWAAMp7MgHw8BDIgRJg2UlQCmhSACxbXp2BOBIg4uW0TTzjGsQc1jPmYu6S9uvzly2ktexWq2G7pua2gp5Wj8265rr9QHOsRhj0G1Y/CINtpeUgl7fUl0s1uZSWS2FECiIQYDk84cl/6Pj99f12p+Q0e77jB44Wuqap1aHpam7Q9DXXDoKaVfP9nlnbVgqTK4YUwBEDcVmBpMgAg5ZsAsSYAJZxkOEUnFWZbGj2AAzxCZCWSacPUJEMnEdjUKaQ4TimRCv5v9R7xrphN/3bLbq0rHCBrix8ghNEh4KhqBwiJgOnS0dds/PCJas9vOkbY4W5dNJq4IpEgqDhBZdxeh6RKNsPiZ9ElcBjNBfTpUQwWhT74ZpzILZHObM9m53LfiR0oxKxaClkH6e+OIJuHhGCiv25S9dPeR4xlDzD8enLEYbHLCK8okyW+Pt4eZs8LT4Ff7N6vpmmVXG9JU0LxKs0bVDcafSdMw1W9tg59BJ5maCdE6zlZ+foN9Kzc/w1T8sv4PR/4zS4EGh4HlX6w9DNQ/UaUpLibPect5aHh1G2XiTuwbleIjxj8Tfa+QM="
+    },
+    "C:\\Users\\25938\\source\\repos\\VideoStream\\VideoStreamServer\\VideoStreamServer.vcxproj.user": {
+      "before": "zZJPa8MwDMULuw32HYwppD0s7p8xxkjaQwe77NB2ZTsnjpJ4OFaw5dJBP/ycjNx63KBHPYn3fkia34xGyfrUaHYE6xSalM/jGWdgJBbKVCn3VN4/8fXq7jbZWvwCSeyAqN3HML/x1oIhzoKLcSmvidpnIZysoclc3Chp0WFJscRGFHAEjS1Y0bjcK12IxWy25MGdsc4/dOj71aJvmbgkvmU56JTv6B2IAp/jbIOmUNSjR+NJqEpVeZt1yvQ8nmx1RiXaZhqlafQCua/On8osF9FvaIjd0QG9rIf0PjbI4pKeiGGsh/w3xNPjw7UC7kFD5uC6tzhA/uEe+9N3/7/6AQ==",
+      "after": "zZJPS8NAEMUL3gQ/gLdlKaQ9mI2tiEiSHip48dBq0XP+TJKVzU7YnS0V+uHdpOQiHhV6nDfDez9m5vpiMolXh1axPRgrUSf8Now4A11gKXWdcEfVzQNfpVeX8cbgJxTEdojKvo/za2cMaOLMu2ib8IaoexTCFg20mQ1bWRi0WFFYYCtK2IPCDoxobe6kKsUiipbcuzPW+/sOfT0bdB0Tv4kvWQ4q4Vt6AyLPZzlboy4lDejBdOarStbOZL0yP05nG5VRhaadB0kSPEHu6uOH1MtFcAr1sVvaoSuaMT2NxU9loBPjwID3b3CH+7vzQ3sFBZmFc93ciPcnu4v7Q/d/nn4D"
+    }
+  }
+}]]></FlowDocument.Tag>
+  <Section Margin="0,24" TextAlignment="Center">
+    <Paragraph FontSize="24" FontWeight="Bold" Margin="12,0">
+      <LineBreak />
+      <Span Foreground="Gray">Qt Visual Studio Tools</Span>
+    </Paragraph>
+    <Paragraph FontSize="42" Margin="12,0" FontWeight="Bold">
+      <Span TextDecorations="Underline">Project Format Conversion</Span>
+    </Paragraph>
+    <Paragraph Margin="12,8" FontSize="18">
+      <Span>Report generated on 2025-08-03 13:24:12</Span>
+    </Paragraph>
+  </Section>
+  <Section>
+    <Paragraph FontSize="32" FontWeight="Bold" Margin="12,0">
+      <Span>Files</Span>
+    </Paragraph>
+    <Paragraph Margin="24,12,0,0">
+      <Span FontFamily="Consolas" FontSize="14" Background="WhiteSmoke"><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+      <LineBreak />
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj?before">[Before]</Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj?after">[After]</Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj?diff&amp;before&amp;after">
+                        [Diff before/after]
+                    </Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj?diff&amp;before&amp;current">
+                        [Diff before/current]
+                    </Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj?diff&amp;after&amp;current">
+                        [Diff after/current]
+                    </Hyperlink>
+      <LineBreak />
+    </Paragraph>
+    <Paragraph Margin="24,12,0,0">
+      <Span FontFamily="Consolas" FontSize="14" Background="WhiteSmoke"><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.filters]]></Span>
+      <LineBreak />
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.filters?before">[Before]</Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.filters?after">[After]</Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.filters?diff&amp;before&amp;after">
+                        [Diff before/after]
+                    </Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.filters?diff&amp;before&amp;current">
+                        [Diff before/current]
+                    </Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.filters?diff&amp;after&amp;current">
+                        [Diff after/current]
+                    </Hyperlink>
+      <LineBreak />
+    </Paragraph>
+    <Paragraph Margin="24,12,0,0">
+      <Span FontFamily="Consolas" FontSize="14" Background="WhiteSmoke"><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.user]]></Span>
+      <LineBreak />
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.user?before">[Before]</Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.user?after">[After]</Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.user?diff&amp;before&amp;after">
+                        [Diff before/after]
+                    </Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.user?diff&amp;before&amp;current">
+                        [Diff before/current]
+                    </Hyperlink>
+      <Hyperlink NavigateUri="file://C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj.user?diff&amp;after&amp;current">
+                        [Diff after/current]
+                    </Hyperlink>
+      <LineBreak />
+    </Paragraph>
+  </Section>
+  <Section>
+    <Paragraph FontSize="32" FontWeight="Bold" Margin="12,0">
+      <Span>Changes</Span>
+    </Paragraph>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Converting custom build steps to Qt/MSBuild items]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span><![CDATA[      ]]></Span><Span Background="LightCoral"><![CDATA[<AdditionalIncludeDirectories>D:\Vcpkg\vcpkg\installed\x64-windows\include]]></Span><Span><![CDATA[;$(SolutionDir)\sharedLib\include;%(AdditionalIncludeDirectories);D:\Vcpkg\vcpkg\installed\x64-windows\include\opencv4</AdditionalIncludeDirectories>]]></Span>
+            </Paragraph>
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span><![CDATA[      ]]></Span><Span Background="LightGreen"><![CDATA[<AdditionalIncludeDirectories>GeneratedFiles\$(ConfigurationName);GeneratedFiles;D:\Vcpkg\vcpkg\installed\x64-windows\include]]></Span><Span><![CDATA[;$(SolutionDir)\sharedLib\include;%(AdditionalIncludeDirectories);D:\Vcpkg\vcpkg\installed\x64-windows\include\opencv4</AdditionalIncludeDirectories>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span><![CDATA[      ]]></Span><Span Background="LightCoral"><![CDATA[<AdditionalIncludeDirectories>D:\Vcpkg\vcpkg\installed\x64-windows\include]]></Span><Span><![CDATA[;$(SolutionDir)\sharedLib\include;%(AdditionalIncludeDirectories);D:\Vcpkg\vcpkg\installed\x64-windows\include\opencv4</AdditionalIncludeDirectories>]]></Span>
+            </Paragraph>
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span><![CDATA[      ]]></Span><Span Background="LightGreen"><![CDATA[<AdditionalIncludeDirectories>GeneratedFiles\$(ConfigurationName);GeneratedFiles;D:\Vcpkg\vcpkg\installed\x64-windows\include]]></Span><Span><![CDATA[;$(SolutionDir)\sharedLib\include;%(AdditionalIncludeDirectories);D:\Vcpkg\vcpkg\installed\x64-windows\include\opencv4</AdditionalIncludeDirectories>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Enabling multi-processor compilation]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[      <MultiProcessorCompilation>true</MultiProcessorCompilation>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[      <MultiProcessorCompilation>true</MultiProcessorCompilation>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[      <MultiProcessorCompilation>true</MultiProcessorCompilation>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[      <MultiProcessorCompilation>true</MultiProcessorCompilation>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Project format version]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[    <Keyword>QtVS_v304</Keyword>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Fallback for QTMSBUILD environment variable]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[    <QtMsBuild Condition="'$(QtMsBuild)'=='' OR !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Default Qt properties]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  <Import Project="$(QtMsBuild)\qt_defaults.props" Condition="Exists('$(QtMsBuild)\qt_defaults.props')" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Qt build settings]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Warn if Qt/MSBuild is not found]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') OR !Exists('$(QtMsBuild)\Qt.props')">]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[    <Message Importance="High" Text="QtMsBuild: could not locate qt.targets, qt.props; project may not build correctly." />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  </Target>]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Qt property sheet]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[    <Import Project="$(QtMsBuild)\Qt.props" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[    <Import Project="$(QtMsBuild)\Qt.props" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[    <Import Project="$(QtMsBuild)\Qt.props" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[    <Import Project="$(QtMsBuild)\Qt.props" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+    <Paragraph FontSize="20" FontWeight="Bold" Margin="12">
+      <Span><![CDATA[🡺 Qt targets]]></Span>
+    </Paragraph>
+    <Table CellSpacing="0" BorderBrush="Gray" BorderThickness="0.5">
+      <Table.Columns>
+        <TableColumn />
+        <TableColumn />
+      </Table.Columns>
+      <TableRowGroup>
+        <TableRow Background="Orange">
+          <TableCell ColumnSpan="2" BorderThickness="0.5" BorderBrush="Gray">
+            <Paragraph Margin="10,5" FontWeight="Bold">
+              <Span><![CDATA[C:\Users\25938\source\repos\VideoStream\VideoStreamServer\VideoStreamServer.vcxproj]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell ColumnSpan="2" Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="0.5" />
+        </TableRow>
+        <TableRow>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0" />
+          </TableCell>
+          <TableCell BorderThickness="0, 0, 0.5, 0" BorderBrush="Gray">
+            <Paragraph FontFamily="Consolas" Margin="4, 0">
+              <Span Background="LightGreen"><![CDATA[  <Import Project="$(QtMsBuild)\qt.targets" Condition="Exists('$(QtMsBuild)\qt.targets')" />]]></Span>
+            </Paragraph>
+          </TableCell>
+        </TableRow>
+      </TableRowGroup>
+    </Table>
+  </Section>
+  <Section>
+    <Paragraph />
+  </Section>
+</FlowDocument>
+<!--6X8TAYLHlN2Yao4PQdwE75VjvZ+tpNoe2Jw4oR4ie5M=-->
