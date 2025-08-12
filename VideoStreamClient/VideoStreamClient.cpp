@@ -367,17 +367,48 @@ void VideoStreamClient::resetPlaybackUI()
 void VideoStreamClient::onConnectBtnClicked()
 {
     if (m_connectBtn->text() == "连接") {
-        QString ip = m_ipEntry->text();
-        if (ip.isEmpty()) {
-            QMessageBox::warning(this, "错误", "请输入服务器IP地址。");
+        // 1. 读取并解析 config.json 文件
+        QFile configFile("config.json");
+        if (!configFile.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, "错误", "无法打开配置文件 config.json");
             return;
         }
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(configFile.readAll(), &parseError);
+        configFile.close();
+
+        if (parseError.error != QJsonParseError::NoError) {
+            QMessageBox::warning(this, "错误", "解析 config.json 失败: " + parseError.errorString());
+            return;
+        }
+        if (!doc.isObject()) {
+            QMessageBox::warning(this, "错误", "config.json 格式错误，根应为对象");
+            return;
+        }
+
+        QJsonObject config = doc.object();
+
+        // 2. 从JSON对象中提取IP和端口
+        QString ip = config.value("server_address").toString();
+        // 如果json中没有端口，提供一个合理的默认值（尽管这种情况应该避免）
+        quint16 port = static_cast<quint16>(config.value("server_port").toInt(9998));
+
+        if (ip.isEmpty()) {
+            QMessageBox::warning(this, "错误", "配置文件 config.json 中缺少 'server_address'。");
+            return;
+        }
+
+        // 更新UI显示
+        m_ipEntry->setText(ip);
+
+        // 3. 开始连接
         statusBar()->showMessage("状态: 正在连接 " + ip + "...");
         m_connectBtn->setEnabled(false);
-        // 调用 ClientWorker 的 connectToServer，它会把请求转发给 QuicClient
+
+        // 【修正】使用从配置文件读取的 port 变量
         QMetaObject::invokeMethod(m_worker, "connectToServer", Qt::QueuedConnection,
             Q_ARG(QString, ip),
-            Q_ARG(quint16, AppConfig::CONTROL_PORT)); // 使用QUIC服务器监听的端口
+            Q_ARG(quint16, port));
     }
     else {
         qDebug() << "[Main] 用户请求断开连接。";
