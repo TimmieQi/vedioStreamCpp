@@ -8,6 +8,7 @@
 struct StreamControlBlock {
     std::atomic<bool> running{ false };
     std::atomic<double> seek_to{ -1.0 };
+    std::atomic<bool> paused{ false };
 };
 
 // 推流器接口
@@ -24,4 +25,8 @@ public:
 
     // 请求跳转
     virtual void seek(double time_sec) = 0;
+
+    // 暂停和恢复接口
+    virtual void pause() = 0;
+    virtual void resume() = 0;
 };

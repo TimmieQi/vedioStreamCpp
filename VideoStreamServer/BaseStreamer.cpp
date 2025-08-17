@@ -60,6 +60,16 @@ void BaseStreamer::seek(double time_sec)
     m_control_block->seek_to = time_sec;
 }
 
+void BaseStreamer::pause()
+{
+    m_control_block->paused = true;
+}
+
+void BaseStreamer::resume()
+{
+    m_control_block->paused = false;
+}
+
 void BaseStreamer::cleanup()
 {
     std::cout << "[BaseStreamer] 开始清理基类资源..." << std::endl;
@@ -74,19 +84,26 @@ void BaseStreamer::cleanup()
     std::cout << "[BaseStreamer] 基类资源已清理。" << std::endl;
 }
 
-bool BaseStreamer::initialize_video_encoder(const StreamStrategy& strategy, int width, int height)
+bool BaseStreamer::initialize_video_encoder(int width, int height)
 {
     if (m_video_encoder_ctx) { avcodec_free_context(&m_video_encoder_ctx); }
     const AVCodec* encoder = avcodec_find_encoder_by_name("hevc_nvenc");
     if (!encoder) return false;
     m_video_encoder_ctx = avcodec_alloc_context3(encoder);
     if (!m_video_encoder_ctx) return false;
+
+    // 【核心修改】编码器的初始码率由控制器决定
+    int64_t initial_bitrate = m_controller->get_target_bitrate();
+    m_last_set_bitrate = initial_bitrate;
+    std::cout << "[BaseStreamer] 初始化编码器，初始码率: " << initial_bitrate / 1024 << " kbps" << std::endl;
+
     m_video_encoder_ctx->width = width;
     m_video_encoder_ctx->height = height;
     m_video_encoder_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
     m_video_encoder_ctx->time_base = { 1, 1000 };
-    m_video_encoder_ctx->bit_rate = static_cast<int64_t>(m_base_bitrate * strategy.multiplier);
-    m_video_encoder_ctx->framerate = { strategy.fps_limit, 1 };
+    m_video_encoder_ctx->bit_rate = initial_bitrate; // 使用初始码率
+    // FPS暂时保持不变，后续加入自适应逻辑
+    m_video_encoder_ctx->framerate = { 60, 1 }; // 固定一个初始值
     av_opt_set(m_video_encoder_ctx->priv_data, "preset", "p1", 0);
     av_opt_set(m_video_encoder_ctx->priv_data, "tune", "ll", 0);
     if (avcodec_open2(m_video_encoder_ctx, encoder, nullptr) < 0) {
@@ -99,17 +116,43 @@ bool BaseStreamer::initialize_video_encoder(const StreamStrategy& strategy, int 
 
 void BaseStreamer::encode_and_send_video(AVFrame* frame)
 {
+    if (!m_video_encoder_ctx) {
+        // 首次编码，或分辨率变化后，需要初始化编码器
+        if (frame) {
+            if (!initialize_video_encoder(frame->width, frame->height)) {
+                std::cerr << "[BaseStreamer] 错误: 视频编码器初始化失败。" << std::endl;
+                return;
+            }
+        }
+        else {
+            return; // flush操作，但编码器未初始化
+        }
+    }
+
+    // 【核心修改】在编码前检查并应用新的目标码率
+    int64_t target_bitrate = m_controller->get_target_bitrate();
+    // 只有当目标码率与上次设置的码率差异超过5%时才更新，防止频繁波动
+    if (std::abs(target_bitrate - m_last_set_bitrate) > m_last_set_bitrate * 0.05) {
+        std::cout << "[BaseStreamer] 调整编码器码率 -> " << target_bitrate / 1024 << " kbps" << std::endl;
+        m_video_encoder_ctx->bit_rate = target_bitrate;
+        m_last_set_bitrate = target_bitrate;
+    }
+
+
     if (frame == nullptr) {
-        if (m_video_encoder_ctx) avcodec_send_frame(m_video_encoder_ctx, nullptr); else return;
+        avcodec_send_frame(m_video_encoder_ctx, nullptr);
     }
     else {
-        StreamStrategy current_strategy = m_controller->get_current_strategy();
-        if (!m_video_encoder_ctx || current_strategy.multiplier != m_last_strategy.multiplier || current_strategy.fps_limit != m_last_strategy.fps_limit || m_video_encoder_ctx->width != frame->width || m_video_encoder_ctx->height != frame->height) {
-            if (!initialize_video_encoder(current_strategy, frame->width, frame->height)) return;
-            m_last_strategy = current_strategy;
+        if (m_video_encoder_ctx->width != frame->width || m_video_encoder_ctx->height != frame->height) {
+            // 分辨率变化，需要完全重新初始化
+            if (!initialize_video_encoder(frame->width, frame->height)) {
+                std::cerr << "[BaseStreamer] 错误: 视频编码器重新初始化失败。" << std::endl;
+                return;
+            }
         }
         if (avcodec_send_frame(m_video_encoder_ctx, frame) < 0) return;
     }
+
     int ret = 0;
     while (ret >= 0) {
         ret = avcodec_receive_packet(m_video_encoder_ctx, m_encoded_packet);

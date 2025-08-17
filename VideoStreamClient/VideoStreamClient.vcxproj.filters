@@ -76,6 +76,9 @@
     <ClCompile Include="QuicClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="VideoWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MasterClock.h">
@@ -120,6 +123,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="QuicClient.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="VideoWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

@@ -2,29 +2,22 @@
 #include <string>
 #include <mutex>
 #include <chrono>
-
-struct StreamStrategy
-{
-    double multiplier;
-    int fps_limit;
-};
+#include <atomic>
 
 class AdaptiveStreamController
 {
 public:
     AdaptiveStreamController();
-    StreamStrategy get_current_strategy();
-    void update_strategy(double loss_rate);
+
+    int64_t get_target_bitrate();
+    void update_client_feedback(const std::string& trend);
 
 private:
-    std::string m_current_strategy_name;
-    StreamStrategy m_good_strategy;
-    StreamStrategy m_medium_strategy;
-    StreamStrategy m_poor_strategy;
     std::mutex m_mutex;
+    std::atomic<int64_t> m_target_bitrate_bps{ 0 };
 
-    // 新增成员变量
-    std::string m_pending_strategy_name;
-    std::chrono::steady_clock::time_point m_pending_start_time;
-    const std::chrono::seconds m_threshold_time = std::chrono::seconds(3); // 设定阈值时间为5秒
+    // 状态机参数
+    const int64_t MIN_BITRATE = 250 * 1024;
+    const int64_t MAX_BITRATE = 4000 * 1024;
+    const int64_t START_BITRATE = 1500 * 1024;
 };

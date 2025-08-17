@@ -32,6 +32,9 @@ public:
     // 获取码率控制器
     std::shared_ptr<AdaptiveStreamController> get_controller();
 
+	// 暂停和恢复推流
+    void pause_stream();
+    void resume_stream();
 private:
     std::mutex m_mutex;
     std::thread m_stream_thread;

@@ -48,6 +48,7 @@ ClientWorker::ClientWorker(
     connect(m_quicClient, &QuicClient::connectionFailed, this, &ClientWorker::onQuicConnectionFailed);
     connect(m_quicClient, &QuicClient::playInfoReceived, this, &ClientWorker::onQuicPlayInfoReceived);
     connect(m_quicClient, &QuicClient::latencyUpdated, this, &ClientWorker::onQuicLatencyUpdated);
+    connect(m_quicClient, &QuicClient::bandwidthUpdated, this, &ClientWorker::onBandwidthUpdated);
     connect(m_quicClient, &QuicClient::videoPacketReceived, this, &ClientWorker::processVideoPacket);
     connect(m_quicClient, &QuicClient::audioPacketReceived, this, &ClientWorker::processAudioPacket);
 
@@ -65,7 +66,6 @@ ClientWorker::~ClientWorker()
         m_quicThread->quit();
         m_quicThread->wait(1000);
     }
-    qDebug() << "[Worker] ClientWorker 销毁。";
 }
 
 void ClientWorker::connectToServer(const QString& ip, quint16 port)
@@ -98,17 +98,32 @@ void ClientWorker::requestSeek(double timeSec)
     QMetaObject::invokeMethod(m_quicClient, "sendControlCommand", Qt::QueuedConnection, Q_ARG(QByteArray, command));
 }
 
+void ClientWorker::requestPause()
+{
+    QJsonObject req;
+    req["command"] = "pause";
+    QByteArray command = QJsonDocument(req).toJson(QJsonDocument::Compact);
+    QMetaObject::invokeMethod(m_quicClient, "sendControlCommand", Qt::QueuedConnection, Q_ARG(QByteArray, command));
+}
+
+void ClientWorker::requestResume()
+{
+    QJsonObject req;
+    req["command"] = "resume";
+    QByteArray command = QJsonDocument(req).toJson(QJsonDocument::Compact);
+    QMetaObject::invokeMethod(m_quicClient, "sendControlCommand", Qt::QueuedConnection, Q_ARG(QByteArray, command));
+}
+
 void ClientWorker::onQuicConnectionSuccess(const QList<QString>& videoList)
 {
-    qDebug() << "[Worker] 连接成功，启动心跳。";
     m_isConnected = true;
-    m_heartbeatTimer->start(1000);
+    m_heartbeatTimer->start(1000); // 心跳间隔1秒
+    m_packet_history.clear(); // 清空历史记录
     emit connectionSuccess(videoList);
 }
 
 void ClientWorker::onQuicConnectionFailed(const QString& reason)
 {
-    qDebug() << "[Worker] 连接失败:" << reason;
     m_isConnected = false;
     m_heartbeatTimer->stop();
     emit connectionFailed(reason);
@@ -116,16 +131,22 @@ void ClientWorker::onQuicConnectionFailed(const QString& reason)
 
 void ClientWorker::onQuicPlayInfoReceived(double duration)
 {
-    qDebug() << "[Worker] 收到播放信息，视频时长:" << duration;
     m_monitor.reset();
     m_videoJitterBuffer.reset();
     m_audioJitterBuffer.reset();
+    m_packet_history.clear(); // 开始播放时重置
     emit playInfoReceived(duration);
 }
 
 void ClientWorker::onQuicLatencyUpdated(double latencyMs)
 {
     emit latencyUpdated(latencyMs);
+}
+
+void ClientWorker::onBandwidthUpdated(uint64_t bits_per_second)
+{
+    // 这个函数现在只用于调试打印，不再驱动ABR逻辑
+    // qDebug() << "[Worker] QUIC BWE updated: " << bits_per_second / 1024 << " kbps";
 }
 
 void ClientWorker::sendHeartbeat()
@@ -135,11 +156,18 @@ void ClientWorker::sendHeartbeat()
         return;
     }
 
-    NetworkStats stats = m_monitor.get_statistics();
+    NetworkTrend trend = getNetworkTrend();
+    QString trend_str = "hold";
+    if (trend == NetworkTrend::Increase) {
+        trend_str = "increase";
+    }
+    else if (trend == NetworkTrend::Decrease) {
+        trend_str = "decrease";
+    }
+
     QJsonObject heartbeatObject;
     heartbeatObject["command"] = "heartbeat";
-    heartbeatObject["loss_rate"] = stats.loss_rate;
-    heartbeatObject["bitrate_bps"] = stats.bitrate_bps;
+    heartbeatObject["trend"] = trend_str;
     heartbeatObject["client_ts"] = QDateTime::currentMSecsSinceEpoch();
 
     QByteArray command = QJsonDocument(heartbeatObject).toJson(QJsonDocument::Compact);
@@ -157,12 +185,12 @@ void ClientWorker::processVideoPacket(const QByteArray& packet)
     memcpy(&pts_net, packet.constData() + TYPE_H_SIZE, PTS_H_SIZE);
     int64_t ts = ntohll_portable(pts_net);
 
+    analyzePacketArrival(ts, packet.size());
+
     auto mediaPacket = std::make_unique<MediaPacket>();
     mediaPacket->ts = ts;
     static uint32_t video_seq = 0;
     mediaPacket->seq = video_seq++;
-
-    // 【修正】直接赋值 QByteArray
     mediaPacket->payload = packet;
 
     m_monitor.record_packet(mediaPacket->seq, packet.size());
@@ -184,9 +212,46 @@ void ClientWorker::processAudioPacket(const QByteArray& packet)
     mediaPacket->ts = ts;
     static uint32_t audio_seq = 0;
     mediaPacket->seq = audio_seq++;
-
-    // 【修正】使用 mid() 提取负载，这是一个 QByteArray
     mediaPacket->payload = packet.mid(HEADER_SIZE);
 
     m_audioJitterBuffer.add_packet(std::move(mediaPacket));
+}
+
+void ClientWorker::analyzePacketArrival(int64_t timestamp_ms, int packet_size)
+{
+    m_packet_history.push_back({
+        QDateTime::currentMSecsSinceEpoch(),
+        timestamp_ms,
+        packet_size
+        });
+
+    if (m_packet_history.size() > HISTORY_SIZE) {
+        m_packet_history.pop_front();
+    }
+}
+
+NetworkTrend ClientWorker::getNetworkTrend()
+{
+    if (m_packet_history.size() < 50) {
+        return NetworkTrend::Hold;
+    }
+
+    int64_t media_delta_ms = m_packet_history.back().media_timestamp_ms - m_packet_history.front().media_timestamp_ms;
+    qint64 arrival_delta_ms = m_packet_history.back().arrival_time_ms - m_packet_history.front().arrival_time_ms;
+
+    if (media_delta_ms <= 0) {
+        return NetworkTrend::Hold;
+    }
+
+    double delay_gradient = static_cast<double>(arrival_delta_ms - media_delta_ms) / media_delta_ms;
+
+    if (delay_gradient > 0.05) { // 阈值可以调整，0.05表示延迟增加了5%
+        return NetworkTrend::Decrease;
+    }
+    else if (delay_gradient < -0.05) { // 延迟减少了5%
+        return NetworkTrend::Increase;
+    }
+    else {
+        return NetworkTrend::Hold;
+    }
 }

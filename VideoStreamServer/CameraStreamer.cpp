@@ -101,6 +101,10 @@ bool CameraStreamer::initialize_audio_capture() {
 
 void CameraStreamer::video_stream_loop() {
     cv::Mat bgr_frame;
+    // 暂时定义一个固定的目标帧率
+    const int TARGET_FPS = 30;
+    const auto target_interval = std::chrono::microseconds(1000000 / TARGET_FPS);
+
     while (m_control_block->running) {
         auto start_capture_time = std::chrono::steady_clock::now();
         if (!m_video_capture || !m_video_capture->isOpened() || !m_video_capture->read(bgr_frame) || bgr_frame.empty()) {
@@ -114,9 +118,8 @@ void CameraStreamer::video_stream_loop() {
 
         encode_and_send_video(m_yuv_frame);
 
-        StreamStrategy strategy = m_controller->get_current_strategy();
+        // 【修改】移除对旧 strategy 的引用，使用固定间隔来休眠
         auto process_duration = std::chrono::steady_clock::now() - start_capture_time;
-        auto target_interval = std::chrono::microseconds(1000000 / strategy.fps_limit);
         if (target_interval > process_duration) {
             std::this_thread::sleep_for(target_interval - process_duration);
         }

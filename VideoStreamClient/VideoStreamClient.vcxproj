@@ -67,12 +67,14 @@
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\sharedLib\include;D:\Vcpkg\vcpkg\installed\x64-windows\include\opencv4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>QUIC_API_ENABLE_PREVIEW_FEATURES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>C:\Users\25938\source\repos\VideoStream\\sharedLib\include;D:\Vcpkg\vcpkg\installed\x64-windows\include\opencv4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>QUIC_API_ENABLE_PREVIEW_FEATURES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>D:\Vcpkg\vcpkg\installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -112,6 +114,7 @@ bcrypt.lib
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="VideoWidget.cpp" />
     <QtRcc Include="VideoStreamClient.qrc" />
     <QtUic Include="VideoStreamClient.ui" />
     <QtMoc Include="VideoStreamClient.h" />
@@ -131,6 +134,7 @@ bcrypt.lib
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <QtMoc Include="VideoWidget.h" />
     <QtMoc Include="QuicClient.h" />
     <QtMoc Include="AudioPlayer.h" />
     <QtMoc Include="VideoDecoder.h" />

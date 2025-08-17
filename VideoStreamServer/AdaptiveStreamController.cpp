@@ -1,55 +1,43 @@
 ﻿#include "AdaptiveStreamController.h"
 #include <iostream>
 #include <iomanip> 
+#include <algorithm>
 
 AdaptiveStreamController::AdaptiveStreamController()
-    : m_current_strategy_name("good")
 {
-    m_good_strategy = { 1.0, 60 };
-    m_medium_strategy = { 0.5, 30 };
-    m_poor_strategy = { 0.25, 20 };
-    m_pending_strategy_name = m_current_strategy_name;
+    m_target_bitrate_bps.store(START_BITRATE);
 }
 
-StreamStrategy AdaptiveStreamController::get_current_strategy()
+int64_t AdaptiveStreamController::get_target_bitrate()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_current_strategy_name == "good") return m_good_strategy;
-    if (m_current_strategy_name == "medium") return m_medium_strategy;
-    return m_poor_strategy;
+    return m_target_bitrate_bps.load();
 }
 
-void AdaptiveStreamController::update_strategy(double loss_rate)
+void AdaptiveStreamController::update_client_feedback(const std::string& trend)
 {
-    std::string new_strategy_name = "good";
-    if (loss_rate >= 0.1) {
-        new_strategy_name = "poor";
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    int64_t current_bitrate = m_target_bitrate_bps.load();
+    int64_t new_bitrate = current_bitrate;
+
+    if (trend == "increase") {
+        // 温和的乘性增：每次增加8%
+        new_bitrate = static_cast<int64_t>(current_bitrate * 1.08);
     }
-    else if (loss_rate >= 0.03) {
-        new_strategy_name = "medium";
+    else if (trend == "decrease") {
+        // 乘性减：每次降低15%
+        new_bitrate = static_cast<int64_t>(current_bitrate * 0.85);
+    }
+    else { // "hold"
+        return;
     }
 
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_current_strategy_name != new_strategy_name) {
-        if (m_pending_strategy_name != new_strategy_name) {
-            // 新的待更改策略，重新计时
-            m_pending_strategy_name = new_strategy_name;
-            m_pending_start_time = std::chrono::steady_clock::now();
-        }
-        else {
-            // 检查是否达到阈值时间
-            auto elapsed_time = std::chrono::steady_clock::now() - m_pending_start_time;
-            if (elapsed_time >= m_threshold_time) {
-                // 使用 iomanip 来格式化输出百分比
-                std::cout << "[服务端-控制器] 丢包率: "
-                    << std::fixed << std::setprecision(2) << loss_rate * 100.0
-                    << "%, 切换策略至: " << new_strategy_name << std::endl;
-                m_current_strategy_name = new_strategy_name;
-            }
-        }
-    }
-    else {
-        // 当前策略未改变，重置待更改策略
-        m_pending_strategy_name = m_current_strategy_name;
+    // 将新码率限制在预设的最小/最大值之间
+    new_bitrate = std::max(MIN_BITRATE, std::min(MAX_BITRATE, new_bitrate));
+
+    if (new_bitrate != current_bitrate) {
+        m_target_bitrate_bps.store(new_bitrate);
+        std::cout << "[服务端-控制器] 收到反馈 '" << trend
+            << "', 调整目标码率至: " << new_bitrate / 1024 << " kbps" << std::endl;
     }
 }

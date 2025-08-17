@@ -29,7 +29,8 @@ signals:
     void videoPacketReceived(const QByteArray& packet);
     void audioPacketReceived(const QByteArray& packet);
     void latencyUpdated(double latencyMs);
-
+    // 传递估计的带宽
+    void bandwidthUpdated(uint64_t bits_per_second);
 private:
     struct SendRequest {
         QUIC_BUFFER QuicBuffer;

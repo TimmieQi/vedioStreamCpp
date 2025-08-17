@@ -5,7 +5,7 @@
 #include <msquic.h>
 #include <iostream>
 #include <vector>
-
+#include<fstream>
 // Helper functions to decode hex string (for certificate hash)
 uint8_t DecodeHexChar(char c)
 {
@@ -107,7 +107,7 @@ bool QuicServer::LoadConfiguration(const std::string& cert_hash)
     Settings.IsSet.IdleTimeoutMs = TRUE;
     Settings.ServerResumptionLevel = QUIC_SERVER_RESUME_AND_ZERORTT;
     Settings.IsSet.ServerResumptionLevel = TRUE;
-
+    Settings.CongestionControlAlgorithm = QUIC_CONGESTION_CONTROL_ALGORITHM_BBR;
     // 客户端将打开一个双向流用于控制
     Settings.PeerBidiStreamCount = 1;
     Settings.IsSet.PeerBidiStreamCount = TRUE;
@@ -119,6 +119,37 @@ bool QuicServer::LoadConfiguration(const std::string& cert_hash)
     // 允许服务器发送和接收Datagram
     Settings.DatagramReceiveEnabled = TRUE;
     Settings.IsSet.DatagramReceiveEnabled = TRUE;
+
+    bool pacing_enabled = true; // 生产环境默认值
+    std::ifstream config_file("config.json");
+    if (config_file.is_open()) {
+        try {
+            nlohmann::json config_json;
+            config_file >> config_json;
+            // 如果文件中存在该字段，则使用文件中的值
+            pacing_enabled = config_json.value("pacing_enabled", true);
+        }
+        catch (...) {
+            /* 忽略解析错误，使用默认值 */ 
+        }
+    }
+    Settings.IsSet.PacingEnabled = TRUE;
+    Settings.PacingEnabled = pacing_enabled;
+
+    if (!pacing_enabled) {
+        // 2. 调整 HyStart (慢启动算法)
+// HyStart 旨在更快地退出慢启动阶段。在本地回环中，禁用它可能有助于避免过早地判断拥塞。
+        Settings.IsSet.HyStartEnabled = TRUE;
+        Settings.HyStartEnabled = FALSE; // 设置为 FALSE
+
+        // 3. 设置一个非常大的初始拥塞窗口 (CWND)
+        // 告诉拥塞控制器，我们一开始就认为网络很好，可以发送大量数据。
+        Settings.IsSet.InitialWindowPackets = TRUE;
+        Settings.InitialWindowPackets = 100; // 设置一个较大的值，例如100个包
+    }
+
+
+
 
     const QUIC_BUFFER Alpn = { sizeof("vstream") - 1, (uint8_t*)"vstream" };
     if (QUIC_FAILED(m_msquic->ConfigurationOpen(m_registration, &Alpn, 1, &Settings, sizeof(Settings), nullptr, &m_configuration))) {
@@ -260,15 +291,24 @@ void QuicServer::HandleControlCommand(HQUIC Connection, HQUIC Stream, const nloh
         if (time >= 0) m_streamer_manager->seek_stream(time);
         return; // seek命令不需要回复
     }
+    else if (command_str == "pause") {
+        m_streamer_manager->pause_stream();
+        return; // 无需回复
+    }
+    else if (command_str == "resume") {
+        m_streamer_manager->resume_stream();
+        return; // 无需回复
+    }
     else if (command_str == "heartbeat") {
-        double loss_rate = command_json.value("loss_rate", 0.0);
-        m_streamer_manager->get_controller()->update_strategy(loss_rate);
+        std::string trend = command_json.value("trend", "hold");
+        m_streamer_manager->get_controller()->update_client_feedback(trend);
+
         if (command_json.contains("client_ts")) {
             response_json["command"] = "heartbeat_reply";
             response_json["client_ts"] = command_json["client_ts"];
         }
         else {
-            return; // 没有时间戳的心跳包不回复
+            return;
         }
     }
     else {

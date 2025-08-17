@@ -118,3 +118,19 @@ std::shared_ptr<AdaptiveStreamController> StreamerManager::get_controller()
 {
     return m_controller;
 }
+
+void StreamerManager::pause_stream()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_current_streamer) {
+        m_current_streamer->pause();
+    }
+}
+
+void StreamerManager::resume_stream()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_current_streamer) {
+        m_current_streamer->resume();
+    }
+}

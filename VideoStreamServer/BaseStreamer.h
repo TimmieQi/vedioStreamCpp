@@ -23,9 +23,10 @@ public:
 
     void stop() final;
     void seek(double time_sec) override;
-
+    void pause() final;
+    void resume() final;
 protected:
-    bool initialize_video_encoder(const StreamStrategy& strategy, int width, int height);
+    bool initialize_video_encoder(int width, int height);
     void encode_and_send_video(AVFrame* frame);
     // 【修改】send_quic_data 现在内部处理分片
     void send_quic_data(AppConfig::PacketType type, const uint8_t* payload, uint32_t payload_size, int64_t pts);
@@ -50,9 +51,13 @@ protected:
     AVCodecContext* m_video_encoder_ctx = nullptr;
     AVPacket* m_encoded_packet = nullptr;
 
-    StreamStrategy m_last_strategy = { 0.0, 0 };
-    int64_t m_base_bitrate = 1500 * 1024;
+    // 不再需要m_last_strategy和m_base_bitrate
+    // StreamStrategy m_last_strategy = { 0.0, 0 };
+    // int64_t m_base_bitrate = 1500 * 1024;
 
-    // 【新增】定义一个安全的数据报负载大小阈值
+    // 跟踪上次设置的码率
+    int64_t m_last_set_bitrate = 0;
+
+    // 定义一个安全的数据报负载大小阈值(MTU)
     const uint32_t MAX_DATAGRAM_PAYLOAD_SIZE = 1200;
 };

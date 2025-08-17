@@ -42,6 +42,8 @@ void MasterClock::pause()
     paused_.store(true);
 }
 
+
+
 void MasterClock::resume()
 {
     paused_.store(false);

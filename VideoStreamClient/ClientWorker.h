@@ -1,14 +1,21 @@
-﻿// ClientWorker.h
-#pragma once
+﻿#pragma once
 
 #include <QObject>
 #include <QList>
 #include <qtimer.h>
-#include <map> // for std::map
+#include <deque> // 【新增】
 
+// 前向声明
 class NetworkMonitor;
 class JitterBuffer;
 class QuicClient;
+
+// 【新增】定义网络趋势反馈类型
+enum class NetworkTrend {
+    Increase,
+    Decrease,
+    Hold
+};
 
 class ClientWorker : public QObject
 {
@@ -28,12 +35,14 @@ public slots:
     void disconnectFromServer();
     void requestPlay(const QString& source);
     void requestSeek(double timeSec);
-
+    void requestPause();
+    void requestResume();
 private slots:
     void onQuicConnectionSuccess(const QList<QString>& videoList);
     void onQuicConnectionFailed(const QString& reason);
     void onQuicPlayInfoReceived(double duration);
     void onQuicLatencyUpdated(double latencyMs);
+    void onBandwidthUpdated(uint64_t bits_per_second); // 保留但逻辑上不再核心
     void processVideoPacket(const QByteArray& packet);
     void processAudioPacket(const QByteArray& packet);
     void sendHeartbeat();
@@ -55,9 +64,15 @@ private:
 
     bool m_isConnected;
 
-    // 【新增】用于视频帧重组的缓冲区
-    // Key: Timestamp, Value: map of <FragmentID, Payload>
-    std::map<int64_t, std::map<uint32_t, QByteArray>> m_video_reassembly_buffer;
-    // Key: Timestamp, Value: FragmentCount
-    std::map<int64_t, uint32_t> m_video_fragment_counts;
+    // 【新增】用于网络趋势分析的成员
+    void analyzePacketArrival(int64_t timestamp_ms, int packet_size);
+    NetworkTrend getNetworkTrend();
+
+    struct PacketArrivalInfo {
+        qint64 arrival_time_ms;
+        int64_t media_timestamp_ms;
+        int size;
+    };
+    std::deque<PacketArrivalInfo> m_packet_history;
+    const int HISTORY_SIZE = 100;
 };

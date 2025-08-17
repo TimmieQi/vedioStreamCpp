@@ -4,7 +4,7 @@
 #include <QtWidgets>
 #include <QThread>
 #include <QTimer>
-
+#include "VideoWidget.h"
 // 前向声明
 class MasterClock;
 class NetworkMonitor;
@@ -42,8 +42,6 @@ private:
 
     // --- 渲染和UI更新 ---
     QTimer* m_renderTimer = nullptr;
-    struct SwsContext* m_swsContext = nullptr;
-    std::vector<uint8_t> m_rgbBuffer;
 
     // --- 核心数据结构 ---
     std::unique_ptr<MasterClock> m_masterClock;
@@ -66,7 +64,7 @@ private:
     QLabel* m_latencyIndicatorLabel = nullptr;
 
     QWidget* m_videoPlayerContainer = nullptr;
-    QLabel* m_videoLabel = nullptr;
+    VideoWidget* m_videoWidget = nullptr;
 
     QWidget* m_controlsWidget = nullptr;
     QSlider* m_progressSlider = nullptr;
@@ -80,8 +78,6 @@ private:
     QPushButton* m_toggleButton = nullptr; // 切换按钮
 
     // --- 状态和几何信息 ---
-    bool m_isFullScreen = false;
-    QRect m_originalGeometry;
     double m_currentDurationSec = 0.0;
     bool m_isLeftPanelCollapsed = false;
     int m_leftPanelLastWidth = 320;

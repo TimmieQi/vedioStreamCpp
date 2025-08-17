@@ -5,13 +5,15 @@
 #include <QJsonArray>
 #include <QDateTime>
 #include <QHostAddress>
-
+#include <fstream>
+#include "nlohmann/json.hpp"
 #ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <byteswap.h>
 #define _byteswap_uint64 bswap_64
 #endif
+
 
 inline uint64_t ntohll_portable(uint64_t value) {
     const int num = 1;
@@ -78,7 +80,14 @@ void QuicClient::connectToServer(const QString& host, quint16 port)
     settings.IsSet.IdleTimeoutMs = TRUE;
     settings.IdleTimeoutMs = 10000;
 
-    // 【核心修改】设置 DatagramReceiveEnabled 为 TRUE
+    // 启用网络统计事件
+    settings.IsSet.NetStatsEventEnabled = TRUE;
+    settings.NetStatsEventEnabled = TRUE;
+
+
+    settings.IsSet.CongestionControlAlgorithm = TRUE;
+    settings.CongestionControlAlgorithm = QUIC_CONGESTION_CONTROL_ALGORITHM_BBR;
+    // 设置 DatagramReceiveEnabled 为 TRUE
     settings.IsSet.DatagramReceiveEnabled = TRUE;
     settings.DatagramReceiveEnabled = TRUE;
 
@@ -87,6 +96,37 @@ void QuicClient::connectToServer(const QString& host, quint16 port)
     // settings.IsSet.PeerUnidiStreamCount = TRUE;
     settings.PeerBidiStreamCount = 1; // 仍然需要一个双向流用于控制
     settings.IsSet.PeerBidiStreamCount = TRUE;
+
+
+
+    bool pacing_enabled = true; // 生产环境默认值
+    std::ifstream config_file("config.json");
+    if (config_file.is_open()) {
+        try {
+            nlohmann::json config_json;
+            config_file >> config_json;
+            // 如果文件中存在该字段，则使用文件中的值
+            pacing_enabled = config_json.value("pacing_enabled", true);
+        }
+        catch (...) {
+            /* 忽略解析错误，使用默认值 */
+        }
+    }
+    settings.IsSet.PacingEnabled = TRUE;
+    settings.PacingEnabled = pacing_enabled;
+
+    if (!pacing_enabled) {
+        // 2. 调整 HyStart (慢启动算法)
+// HyStart 旨在更快地退出慢启动阶段。在本地回环中，禁用它可能有助于避免过早地判断拥塞。
+        settings.IsSet.HyStartEnabled = TRUE;
+        settings.HyStartEnabled = FALSE; // 设置为 FALSE
+
+        // 3. 设置一个非常大的初始拥塞窗口 (CWND)
+        // 告诉拥塞控制器，我们一开始就认为网络很好，可以发送大量数据。
+        settings.IsSet.InitialWindowPackets = TRUE;
+        settings.InitialWindowPackets = 100; // 设置一个较大的值，例如100个包
+    }
+
 
     if (QUIC_FAILED(status = m_msquic->ConfigurationOpen(m_registration, &alpn, 1, &settings, sizeof(settings), nullptr, &m_configuration))) {
         emit connectionFailed("ConfigurationOpen failed");
@@ -206,8 +246,15 @@ QUIC_STATUS QuicClient::HandleConnectionEvent(HQUIC Connection, QUIC_CONNECTION_
 
         break;
     }
+#ifdef QUIC_API_ENABLE_PREVIEW_FEATURES
+    case QUIC_CONNECTION_EVENT_NETWORK_STATISTICS: {
 
-                                                // 其他事件处理保持不变...
+        uint64_t bandwidth_Bps = Event->NETWORK_STATISTICS.Bandwidth;
+
+        emit bandwidthUpdated(bandwidth_Bps * 8);
+        break;
+    }
+#endif
     case QUIC_CONNECTION_EVENT_SHUTDOWN_INITIATED_BY_TRANSPORT:
         emit connectionFailed("连接中断");
         break;

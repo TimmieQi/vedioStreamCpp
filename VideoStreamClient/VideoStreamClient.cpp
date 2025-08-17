@@ -30,7 +30,6 @@ VideoStreamClient::VideoStreamClient(QWidget* parent)
     : QMainWindow(parent),
     m_workerThread(nullptr),
     m_worker(nullptr),
-    m_isFullScreen(false),
     m_isLeftPanelCollapsed(false),
     m_currentLatencyMs(0.0)
 {
@@ -164,11 +163,12 @@ void VideoStreamClient::initUI()
     QVBoxLayout* videoPlayerContainerLayout = new QVBoxLayout(m_videoPlayerContainer);
     videoPlayerContainerLayout->setContentsMargins(0, 0, 0, 0);
 
-    m_videoLabel = new QLabel("请连接服务器并选择一个视频源", m_videoPlayerContainer);
-    m_videoLabel->setAlignment(Qt::AlignCenter);
-    m_videoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_videoLabel->setStyleSheet(QString("color: %1; font-size: 20px; background-color: #000000; border-top-left-radius: 8px; border-top-right-radius: 8px;").arg(COLOR_TEXT_SECONDARY));
-    videoPlayerContainerLayout->addWidget(m_videoLabel, 1);
+    m_videoWidget = new VideoWidget(m_videoPlayerContainer);
+    m_videoWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // 设置一个黑色背景，直到第一帧视频到达
+    m_videoWidget->setStyleSheet("background-color: #000000;");
+    videoPlayerContainerLayout->addWidget(m_videoWidget, 1);
+
     m_controlsWidget = new QWidget(m_videoPlayerContainer);
     m_controlsWidget->setStyleSheet(QString("background-color: rgba(255, 255, 255, 0.9); border-radius: 0 0 8px 8px; padding: 8px; border-top: 1px solid %1;").arg(COLOR_BORDER));
     QVBoxLayout* controlsLayout = new QVBoxLayout(m_controlsWidget);
@@ -295,13 +295,10 @@ void VideoStreamClient::initWorkerThread()
 void VideoStreamClient::initMediaThreads()
 {
     m_videoDecodeThread = new QThread(this);
-    m_videoDecoder = new VideoDecoder(*m_videoJitterBuffer, *m_decodedFrameBuffer);
+    // 【修改】将 m_masterClock 传递给 VideoDecoder
+    m_videoDecoder = new VideoDecoder(*m_videoJitterBuffer, *m_decodedFrameBuffer, *m_masterClock);
     m_videoDecoder->moveToThread(m_videoDecodeThread);
     connect(m_videoDecodeThread, &QThread::finished, m_videoDecoder, &QObject::deleteLater);
-    // 【重要】启动解码循环的方式
-    // 当解码线程启动时，让它开始自己的事件循环。
-    // 我们将通过 invokeMethod 来触发解码逻辑。
-    // 如果 VideoDecoder 有一个 run() 或 decodeLoop() 的 public slot，连接会更优雅。
     m_videoDecodeThread->start();
 
     m_audioPlayThread = new QThread(this);
@@ -314,26 +311,29 @@ void VideoStreamClient::initMediaThreads()
 
 void VideoStreamClient::toggleFullScreen()
 {
-    if (m_isFullScreen) {
-        showNormal();
+    if (isFullScreen()) { 
+        setWindowState(Qt::WindowNoState);
+
+        // 恢复UI元素
         if (!m_isLeftPanelCollapsed) m_leftPanelWidget->show();
         m_toggleButton->show();
         statusBar()->show();
         m_mainLayout->setContentsMargins(15, 15, 15, 15);
         m_fullscreenBtn->setIcon(style()->standardIcon(QStyle::SP_TitleBarMaxButton));
-        m_isFullScreen = false;
     }
     else {
-        m_originalGeometry = this->geometry();
+
+        setWindowState(Qt::WindowFullScreen);
+
+        // 隐藏UI元素
         m_leftPanelWidget->hide();
         m_toggleButton->hide();
         statusBar()->hide();
         m_mainLayout->setContentsMargins(0, 0, 0, 0);
-        showFullScreen();
         m_fullscreenBtn->setIcon(style()->standardIcon(QStyle::SP_TitleBarNormalButton));
-        m_isFullScreen = true;
     }
 }
+
 
 void VideoStreamClient::resetPlaybackUI()
 {
@@ -342,8 +342,8 @@ void VideoStreamClient::resetPlaybackUI()
     m_connectBtn->setEnabled(true);
     m_playBtn->setEnabled(false);
     m_videoList->clear();
-    m_videoLabel->clear();
-    m_videoLabel->setText("请连接服务器并选择一个视频源");
+    m_videoWidget->update();
+
     m_progressSlider->setEnabled(false);
     m_progressSlider->setValue(0);
     m_playPauseBtn->setEnabled(false);
@@ -388,8 +388,8 @@ void VideoStreamClient::onConnectBtnClicked()
 
         QJsonObject config = doc.object();
 
-        // 2. 从JSON对象中提取IP和端口
-        QString ip = config.value("server_address").toString();
+        // 提取IP和端口
+        QString ip = m_ipEntry->text();
         // 如果json中没有端口，提供一个合理的默认值（尽管这种情况应该避免）
         quint16 port = static_cast<quint16>(config.value("server_port").toInt(9998));
 
@@ -493,14 +493,13 @@ void VideoStreamClient::onVolumeChanged(int value)
 
 void VideoStreamClient::keyPressEvent(QKeyEvent* event)
 {
-    if (event->key() == Qt::Key_Escape && m_isFullScreen) {
+    if (event->key() == Qt::Key_Escape && isFullScreen()) {
         toggleFullScreen();
     }
     else {
         QMainWindow::keyPressEvent(event);
     }
 }
-
 void VideoStreamClient::closeEvent(QCloseEvent* event)
 {
     qDebug() << "窗口关闭事件触发，执行清理...";
@@ -516,10 +515,14 @@ void VideoStreamClient::onPlayPauseBtnClicked()
     if (m_masterClock->is_paused()) {
         m_masterClock->resume();
         m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+        // 通知服务器恢复
+        QMetaObject::invokeMethod(m_worker, "requestResume", Qt::QueuedConnection);
     }
     else {
         m_masterClock->pause();
         m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+        // 通知服务器暂停
+        QMetaObject::invokeMethod(m_worker, "requestPause", Qt::QueuedConnection);
     }
 }
 
@@ -534,7 +537,6 @@ void VideoStreamClient::onSliderReleased()
     m_audioJitterBuffer->reset();
     m_decodedFrameBuffer->reset();
     m_masterClock->reset();
-    m_videoLabel->setText("正在跳转...");
 
     // 发送跳转请求
     QMetaObject::invokeMethod(m_worker, "requestSeek", Qt::QueuedConnection, Q_ARG(double, targetSec));
@@ -593,32 +595,32 @@ void VideoStreamClient::updateStatus()
 
 void VideoStreamClient::onRenderTimerTimeout()
 {
+    // 【核心修正】在渲染循环的开头检查暂停状态
+    if (m_masterClock->is_paused()) {
+        return; // 如果已暂停，则不渲染新帧，画面将静止
+    }
+
     int64_t target_pts = m_masterClock->get_time_ms();
     if (target_pts < 0) return;
+
     auto decoded_frame_wrapper = m_decodedFrameBuffer->get_frame(target_pts);
     if (!decoded_frame_wrapper) {
         decoded_frame_wrapper = m_decodedFrameBuffer->get_interpolated_frame(target_pts);
     }
     if (!decoded_frame_wrapper) return;
+
     AVFrame* frame_to_render = decoded_frame_wrapper->frame.get();
     if (!frame_to_render || !frame_to_render->data[0]) return;
-    m_swsContext = sws_getCachedContext(m_swsContext,
-        frame_to_render->width, frame_to_render->height, (AVPixelFormat)frame_to_render->format,
-        frame_to_render->width, frame_to_render->height, AV_PIX_FMT_RGB24,
-        SWS_BILINEAR, nullptr, nullptr, nullptr);
-    if (!m_swsContext) return;
-    int rgb_buffer_size = av_image_get_buffer_size(AV_PIX_FMT_RGB24, frame_to_render->width, frame_to_render->height, 1);
-    if (m_rgbBuffer.size() < static_cast<size_t>(rgb_buffer_size)) {
-        m_rgbBuffer.resize(rgb_buffer_size);
+
+    AVFrame* frame_clone = av_frame_clone(frame_to_render);
+    if (!frame_clone) {
+        return;
     }
-    uint8_t* dest_data[1] = { m_rgbBuffer.data() };
-    int dest_linesize[1] = { frame_to_render->width * 3 };
-    sws_scale(m_swsContext, (const uint8_t* const*)frame_to_render->data, frame_to_render->linesize, 0, frame_to_render->height, dest_data, dest_linesize);
-    QImage image(m_rgbBuffer.data(), frame_to_render->width, frame_to_render->height, dest_linesize[0], QImage::Format_RGB888);
-    QPixmap pixmap = QPixmap::fromImage(image.copy());
-    QPixmap scaled_pixmap = pixmap.scaled(m_videoLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    m_videoLabel->setPixmap(scaled_pixmap);
+
+    QMetaObject::invokeMethod(m_videoWidget, "onFrameDecoded", Qt::QueuedConnection, Q_ARG(AVFrame*, frame_clone));
+
     m_frameCount++;
+
     if (m_currentDurationSec > 0 && !m_progressSlider->isSliderDown()) {
         double current_pos_sec = target_pts / 1000.0;
         int slider_value = static_cast<int>((current_pos_sec / m_currentDurationSec) * 1000.0);
