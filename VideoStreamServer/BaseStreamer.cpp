@@ -8,6 +8,7 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
+#include <libswscale/swscale.h>
 }
 
 #ifdef _WIN32
@@ -43,11 +44,18 @@ BaseStreamer::BaseStreamer(const QUIC_API_TABLE* msquic, HQUIC connection, std::
     m_control_block(std::make_shared<StreamControlBlock>())
 {
     m_encoded_packet = av_packet_alloc();
+    m_scaled_frame = av_frame_alloc();
 }
 
 BaseStreamer::~BaseStreamer()
 {
     stop();
+    if (m_scaled_frame) {
+        av_frame_free(&m_scaled_frame);
+    }
+    if (m_scaler_ctx) {
+        sws_freeContext(m_scaler_ctx);
+    }
 }
 
 void BaseStreamer::stop()
@@ -81,83 +89,152 @@ void BaseStreamer::cleanup()
         av_packet_free(&m_encoded_packet);
         m_encoded_packet = nullptr;
     }
+    if (m_scaler_ctx) {
+        sws_freeContext(m_scaler_ctx);
+        m_scaler_ctx = nullptr;
+    }
     std::cout << "[BaseStreamer] 基类资源已清理。" << std::endl;
 }
 
-bool BaseStreamer::initialize_video_encoder(int width, int height)
+bool BaseStreamer::initialize_video_encoder(int width, int height, int fps)
 {
-    if (m_video_encoder_ctx) { avcodec_free_context(&m_video_encoder_ctx); }
+    // 1. 清理旧的编码器上下文
+    if (m_video_encoder_ctx) {
+        avcodec_free_context(&m_video_encoder_ctx);
+    }
     const AVCodec* encoder = avcodec_find_encoder_by_name("hevc_nvenc");
-    if (!encoder) return false;
+    if (!encoder) {
+        std::cerr << "[BaseStreamer] 错误: 找不到 hevc_nvenc 编码器。" << std::endl;
+        return false;
+    }
     m_video_encoder_ctx = avcodec_alloc_context3(encoder);
-    if (!m_video_encoder_ctx) return false;
+    if (!m_video_encoder_ctx) {
+        std::cerr << "[BaseStreamer] 错误: 无法分配编码器上下文。" << std::endl;
+        return false;
+    }
 
-    // 【核心修改】编码器的初始码率由控制器决定
-    int64_t initial_bitrate = m_controller->get_target_bitrate();
-    m_last_set_bitrate = initial_bitrate;
-    std::cout << "[BaseStreamer] 初始化编码器，初始码率: " << initial_bitrate / 1024 << " kbps" << std::endl;
+    // 2. 从控制器获取当前的目标码率 (控制器已经被外部设置了正确的分辨率)
+    int64_t target_bitrate = m_controller->get_decision().target_bitrate_bps;
 
+    // 3. 配置编码器参数
     m_video_encoder_ctx->width = width;
     m_video_encoder_ctx->height = height;
     m_video_encoder_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
-    m_video_encoder_ctx->time_base = { 1, 1000 };
-    m_video_encoder_ctx->bit_rate = initial_bitrate; // 使用初始码率
-    // FPS暂时保持不变，后续加入自适应逻辑
-    m_video_encoder_ctx->framerate = { 60, 1 }; // 固定一个初始值
-    av_opt_set(m_video_encoder_ctx->priv_data, "preset", "p1", 0);
-    av_opt_set(m_video_encoder_ctx->priv_data, "tune", "ll", 0);
+    m_video_encoder_ctx->time_base = { 1, 1000 }; // 时间基为毫秒
+    m_video_encoder_ctx->bit_rate = target_bitrate;
+    m_video_encoder_ctx->framerate = { fps, 1 };
+
+    // NVENC 特定参数
+    av_opt_set(m_video_encoder_ctx->priv_data, "preset", "p1", 0); // p1-p7, p1=fastest
+    av_opt_set(m_video_encoder_ctx->priv_data, "tune", "ll", 0);   // ll=low latency
+    av_opt_set(m_video_encoder_ctx->priv_data, "rc", "vbr", 0);    // 可变码率
+    av_opt_set(m_video_encoder_ctx->priv_data, "cq", "21", 0);     // 恒定质量模式下的质量值
+
+    // 4. 打开编码器
     if (avcodec_open2(m_video_encoder_ctx, encoder, nullptr) < 0) {
+        std::cerr << "[BaseStreamer] 错误: 无法打开视频编码器。" << std::endl;
         avcodec_free_context(&m_video_encoder_ctx);
         m_video_encoder_ctx = nullptr;
         return false;
     }
+
+    // 5. 更新状态变量
+    m_last_set_bitrate = target_bitrate;
+    m_last_set_height = height;
+    m_last_set_fps = fps;
+
+    std::cout << "[BaseStreamer] 编码器已初始化/重新初始化 -> "
+        << width << "x" << height << "@" << fps << "fps, "
+        << "目标码率: " << target_bitrate / 1024 << " kbps" << std::endl;
+
     return true;
 }
 
 void BaseStreamer::encode_and_send_video(AVFrame* frame)
 {
-    if (!m_video_encoder_ctx) {
-        // 首次编码，或分辨率变化后，需要初始化编码器
-        if (frame) {
-            if (!initialize_video_encoder(frame->width, frame->height)) {
-                std::cerr << "[BaseStreamer] 错误: 视频编码器初始化失败。" << std::endl;
-                return;
-            }
+    // 如果是 flush 操作 (frame == nullptr)，直接发送 null 帧给编码器
+    if (frame == nullptr) {
+        if (m_video_encoder_ctx) {
+            avcodec_send_frame(m_video_encoder_ctx, nullptr);
         }
         else {
-            return; // flush操作，但编码器未初始化
+            return; // 编码器未初始化，无需冲洗
         }
     }
+    else { // 正常的帧编码流程
+        // 1. 获取ABR控制器的最新决策
+        ABRDecision decision = m_controller->get_decision();
 
-    // 【核心修改】在编码前检查并应用新的目标码率
-    int64_t target_bitrate = m_controller->get_target_bitrate();
-    // 只有当目标码率与上次设置的码率差异超过5%时才更新，防止频繁波动
-    if (std::abs(target_bitrate - m_last_set_bitrate) > m_last_set_bitrate * 0.05) {
-        std::cout << "[BaseStreamer] 调整编码器码率 -> " << target_bitrate / 1024 << " kbps" << std::endl;
-        m_video_encoder_ctx->bit_rate = target_bitrate;
-        m_last_set_bitrate = target_bitrate;
-    }
+        // 2. 检查是否需要重新初始化编码器 (首次编码或分辨率/帧率变化)
+        if (!m_video_encoder_ctx || decision.target_height != m_last_set_height || decision.target_fps != m_last_set_fps) {
 
+            // 计算新的目标宽度以保持宽高比
+            float scale = static_cast<float>(decision.target_height) / static_cast<float>(frame->height);
+            int target_width = static_cast<int>(frame->width * scale);
+            // 确保宽度是偶数
+            target_width = (target_width / 2) * 2;
 
-    if (frame == nullptr) {
-        avcodec_send_frame(m_video_encoder_ctx, nullptr);
-    }
-    else {
-        if (m_video_encoder_ctx->width != frame->width || m_video_encoder_ctx->height != frame->height) {
-            // 分辨率变化，需要完全重新初始化
-            if (!initialize_video_encoder(frame->width, frame->height)) {
-                std::cerr << "[BaseStreamer] 错误: 视频编码器重新初始化失败。" << std::endl;
+            if (!initialize_video_encoder(target_width, decision.target_height, decision.target_fps)) {
+                std::cerr << "[BaseStreamer] 错误: 在编码循环中重新初始化编码器失败。" << std::endl;
                 return;
             }
         }
-        if (avcodec_send_frame(m_video_encoder_ctx, frame) < 0) return;
+
+        // 3. 检查是否需要动态调整码率 (在不重置编码器的情况下)
+        int64_t target_bitrate = decision.target_bitrate_bps;
+        if (std::abs(target_bitrate - m_last_set_bitrate) > m_last_set_bitrate * 0.05) {
+            std::cout << "[BaseStreamer] 动态调整编码器码率 -> " << target_bitrate / 1024 << " kbps" << std::endl;
+            m_video_encoder_ctx->bit_rate = target_bitrate;
+            m_last_set_bitrate = target_bitrate;
+        }
+
+        // 4. 如果需要降采样，创建一个临时帧
+        AVFrame* frame_to_encode = frame;
+        AVFrame* scaled_frame = nullptr;
+
+        if (m_video_encoder_ctx->width != frame->width || m_video_encoder_ctx->height != frame->height) {
+            // 需要进行降采样
+            scaled_frame = av_frame_alloc();
+            scaled_frame->width = m_video_encoder_ctx->width;
+            scaled_frame->height = m_video_encoder_ctx->height;
+            scaled_frame->format = frame->format;
+            av_frame_get_buffer(scaled_frame, 0);
+
+            SwsContext* sws_ctx_scale = sws_getContext(
+                frame->width, frame->height, (AVPixelFormat)frame->format,
+                scaled_frame->width, scaled_frame->height, (AVPixelFormat)scaled_frame->format,
+                SWS_BILINEAR, nullptr, nullptr, nullptr);
+
+            sws_scale(sws_ctx_scale, (const uint8_t* const*)frame->data, frame->linesize,
+                0, frame->height, scaled_frame->data, scaled_frame->linesize);
+
+            sws_freeContext(sws_ctx_scale);
+            scaled_frame->pts = frame->pts; // 传递时间戳
+            frame_to_encode = scaled_frame;
+        }
+
+        // 5. 发送帧给编码器
+        if (avcodec_send_frame(m_video_encoder_ctx, frame_to_encode) < 0) {
+            // 错误处理
+        }
+
+        // 如果创建了临时缩放帧，释放它
+        if (scaled_frame) {
+            av_frame_free(&scaled_frame);
+        }
     }
 
+    // 6. 从编码器接收编码后的包
     int ret = 0;
     while (ret >= 0) {
         ret = avcodec_receive_packet(m_video_encoder_ctx, m_encoded_packet);
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) break;
-        if (ret < 0) break;
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            break;
+        }
+        else if (ret < 0) {
+            // 错误处理
+            break;
+        }
         send_quic_data(AppConfig::PacketType::Video, m_encoded_packet->data, m_encoded_packet->size, m_encoded_packet->pts);
         av_packet_unref(m_encoded_packet);
     }

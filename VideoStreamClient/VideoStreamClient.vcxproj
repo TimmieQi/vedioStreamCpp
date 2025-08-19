@@ -114,6 +114,7 @@ bcrypt.lib
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="RIFEInterpolator.cpp" />
     <ClCompile Include="VideoWidget.cpp" />
     <QtRcc Include="VideoStreamClient.qrc" />
     <QtUic Include="VideoStreamClient.ui" />
@@ -134,6 +135,7 @@ bcrypt.lib
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="RIFEInterpolator.h" />
     <QtMoc Include="VideoWidget.h" />
     <QtMoc Include="QuicClient.h" />
     <QtMoc Include="AudioPlayer.h" />

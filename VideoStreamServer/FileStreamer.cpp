@@ -33,6 +33,14 @@ FileStreamer::~FileStreamer()
 void FileStreamer::start()
 {
     if (initialize_ffmpeg()) {
+        // 在启动推流循环之前，立即设置正确的分辨率
+        if (m_video_decoder_ctx) {
+            m_controller->set_video_resolution(
+                m_video_decoder_ctx->width, 
+                m_video_decoder_ctx->height
+            );
+        }
+        
         m_control_block->running = true;
         stream_loop();
     }

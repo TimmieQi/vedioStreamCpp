@@ -15,4 +15,5 @@ namespace AppConfig {
         Video = 0,
         Audio = 1
     };
+
 }

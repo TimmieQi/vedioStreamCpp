@@ -24,6 +24,8 @@ CameraStreamer::~CameraStreamer() {
 
 void CameraStreamer::start() {
     if (initialize_video_capture() && initialize_audio_capture()) {
+        m_controller->set_video_resolution(m_frame_size.width, m_frame_size.height);
+
         m_control_block->running = true;
         m_start_time = std::chrono::steady_clock::now();
         m_audio_thread = std::thread(&CameraStreamer::audio_stream_loop, this);

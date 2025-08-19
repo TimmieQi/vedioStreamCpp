@@ -153,7 +153,6 @@
     <ClCompile Include="VideoStreamServer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\sharedLib\include\ByteSwap.h" />
     <ClInclude Include="..\sharedLib\include\shared_config.h" />
     <ClInclude Include="AdaptiveStreamController.h" />
     <ClInclude Include="BaseStreamer.h" />

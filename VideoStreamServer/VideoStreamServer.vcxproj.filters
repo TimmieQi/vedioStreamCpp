@@ -59,9 +59,6 @@
     <ClInclude Include="CameraStreamer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\sharedLib\include\ByteSwap.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="..\sharedLib\include\shared_config.h">
       <Filter>头文件</Filter>
     </ClInclude>

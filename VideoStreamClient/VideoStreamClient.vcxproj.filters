@@ -79,6 +79,9 @@
     <ClCompile Include="VideoWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RIFEInterpolator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MasterClock.h">
@@ -97,6 +100,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\sharedLib\include\shared_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RIFEInterpolator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
