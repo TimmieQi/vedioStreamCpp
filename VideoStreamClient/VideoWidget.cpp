@@ -11,21 +11,19 @@ extern "C" {
 // ===================================================================
 // ==                       着色器代码 (Shader)                     ==
 // ===================================================================
-// 【核心修改】顶点着色器现在接收一个缩放因子
 static const char* g_vertexShaderSource =
 "#version 330 core\n"
 "layout (location = 0) in vec2 vertexIn;\n"
 "layout (location = 1) in vec2 textureIn;\n"
-"uniform vec2 scale;\n" // 新增 uniform 变量
+"uniform vec2 scale;\n"
 "out vec2 textureOut;\n"
 "void main()\n"
 "{\n"
-// 将顶点坐标与缩放因子相乘
 "    gl_Position = vec4(vertexIn * scale, 0.0, 1.0);\n"
 "    textureOut = textureIn;\n"
 "}\n";
 
-// 片段着色器保持不变
+// --- 使用能正确处理 Limited Range YUV (BT.601 standard) 的片元着色器 ---
 static const char* g_fragmentShaderSource =
 "#version 330 core\n"
 "in vec2 textureOut;\n"
@@ -36,11 +34,19 @@ static const char* g_fragmentShaderSource =
 "void main()\n"
 "{\n"
 "    float y = texture(tex_y, textureOut).r;\n"
-"    float u = texture(tex_u, textureOut).r - 0.5;\n"
-"    float v = texture(tex_v, textureOut).r - 0.5;\n"
-"    float r = y + 1.5748 * v;\n"
-"    float g = y - 0.1873 * u - 0.4681 * v;\n"
-"    float b = y + 1.8556 * u;\n"
+"    float u = texture(tex_u, textureOut).r;\n"
+"    float v = texture(tex_v, textureOut).r;\n"
+"\n"
+"    // 从归一化纹理坐标转换回YUV值\n"
+"    y = 1.164 * (y - 0.0625);\n" // 0.0625 is 16/256
+"    u = u - 0.5;\n"
+"    v = v - 0.5;\n"
+"\n"
+"    // YUV to RGB 转换矩阵 (BT.601)\n"
+"    float r = y + 1.596 * v;\n"
+"    float g = y - 0.392 * u - 0.813 * v;\n"
+"    float b = y + 2.017 * u;\n"
+"\n"
 "    fragColor = vec4(r, g, b, 1.0);\n"
 "}\n";
 
@@ -101,37 +107,37 @@ void VideoWidget::initializeGL()
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    // --- 【核心修改】 ---
+    // 将纹理过滤器从 GL_LINEAR 改为 GL_NEAREST，以保留像素细节，避免模糊
     glGenTextures(1, &m_textureY_id);
     glBindTexture(GL_TEXTURE_2D, m_textureY_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     glGenTextures(1, &m_textureU_id);
     glBindTexture(GL_TEXTURE_2D, m_textureU_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     glGenTextures(1, &m_textureV_id);
     glBindTexture(GL_TEXTURE_2D, m_textureV_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // 【修改】使用黑色作为背景色，以实现黑边效果
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 void VideoWidget::resizeGL(int w, int h)
 {
     glViewport(0, 0, w, h);
-    // 【新增】当窗口大小改变时，更新控件的宽高比
     if (h > 0) {
         m_widget_aspect = static_cast<float>(w) / static_cast<float>(h);
     }
@@ -147,16 +153,13 @@ void VideoWidget::paintGL()
 
     m_shaderProgram.bind();
 
-    // 【核心新增】计算缩放因子并上传
     float scale_x = 1.0f;
     float scale_y = 1.0f;
     if (m_widget_aspect > m_video_aspect) {
-        // 控件比视频宽 -> 垂直填满，水平按比例缩放 (上下黑边)
         scale_x = m_video_aspect / m_widget_aspect;
         scale_y = 1.0f;
     }
     else {
-        // 控件比视频高 -> 水平填满，垂直按比例缩放 (左右黑边)
         scale_x = 1.0f;
         scale_y = m_widget_aspect / m_video_aspect;
     }
@@ -188,7 +191,6 @@ void VideoWidget::onFrameDecoded(AVFrame* frame)
     if (m_video_w != frame->width || m_video_h != frame->height) {
         m_video_w = frame->width;
         m_video_h = frame->height;
-        // 【新增】当视频分辨率确定时，计算视频的宽高比
         if (m_video_h > 0) {
             m_video_aspect = static_cast<float>(m_video_w) / static_cast<float>(m_video_h);
         }

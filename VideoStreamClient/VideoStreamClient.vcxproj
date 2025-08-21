@@ -114,6 +114,7 @@ bcrypt.lib
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FSRCNNUpscaler.cpp" />
     <ClCompile Include="RIFEInterpolator.cpp" />
     <ClCompile Include="VideoWidget.cpp" />
     <QtRcc Include="VideoStreamClient.qrc" />
@@ -129,18 +130,17 @@ bcrypt.lib
     <ClCompile Include="MasterClock.cpp" />
     <ClCompile Include="NetworkMonitor.cpp" />
     <ClCompile Include="QuicClient.cpp" />
-    <ClCompile Include="UdpReceiver.cpp" />
     <ClCompile Include="VideoDecoder.cpp" />
     <ClCompile Include="VideoStreamClient.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FSRCNNUpscaler.h" />
+    <QtMoc Include="QuicClient.h" />
     <ClInclude Include="RIFEInterpolator.h" />
     <QtMoc Include="VideoWidget.h" />
-    <QtMoc Include="QuicClient.h" />
     <QtMoc Include="AudioPlayer.h" />
     <QtMoc Include="VideoDecoder.h" />
-    <QtMoc Include="UdpReceiver.h" />
     <QtMoc Include="ClientWorker.h" />
     <QtMoc Include="ClickableSlider.h" />
     <QtMoc Include="ChartWidget.h" />

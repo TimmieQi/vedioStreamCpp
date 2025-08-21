@@ -82,6 +82,9 @@
     <ClCompile Include="RIFEInterpolator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FSRCNNUpscaler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MasterClock.h">
@@ -103,6 +106,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RIFEInterpolator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FSRCNNUpscaler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

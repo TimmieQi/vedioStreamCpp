@@ -65,7 +65,7 @@ VideoDecoder::VideoDecoder(JitterBuffer& inputBuffer, DecodedFrameBuffer& output
     : QObject(parent),
     m_isDecoding(false),
     m_inputBuffer(inputBuffer),
-	m_outputBuffer(outputBuffer),
+    m_outputBuffer(outputBuffer),
     m_clock(clock)
 {
     m_cleanupTimer = new QTimer(this);
@@ -237,7 +237,7 @@ void VideoDecoder::decodeLoop()
     while (m_isDecoding)
     {
         QCoreApplication::processEvents();
-        
+
         // 【核心修正】检查时钟暂停状态
         if (m_clock.is_paused()) {
             QThread::msleep(10);

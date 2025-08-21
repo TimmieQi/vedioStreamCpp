@@ -97,6 +97,21 @@ struct RIFEInterpolator::Impl {
             CheckStatus(ort_api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "RIFE-Interpolator", &env));
             CheckStatus(ort_api->CreateSessionOptions(&session_options));
 
+            // ========== START: MODIFIED FOR GPU ACCELERATION ==========
+            OrtCUDAProviderOptions cuda_options{};
+            OrtStatus* cuda_status = ort_api->SessionOptionsAppendExecutionProvider_CUDA(session_options, &cuda_options);
+
+            if (cuda_status != nullptr) {
+                const char* msg = ort_api->GetErrorMessage(cuda_status);
+                qWarning() << "[RIFE] Could not enable CUDA execution provider. Reason:" << msg;
+                ort_api->ReleaseStatus(cuda_status);
+                qWarning() << "[RIFE] Falling back to CPU. Performance will be limited.";
+            }
+            else {
+                qInfo() << "[RIFE] CUDA execution provider enabled successfully. Using GPU for inference.";
+            }
+            // ========== END: MODIFIED FOR GPU ACCELERATION ==========
+
             std::wstring model_path_w(model_path.begin(), model_path.end());
             CheckStatus(ort_api->CreateSession(env, model_path_w.c_str(), session_options, &session));
 

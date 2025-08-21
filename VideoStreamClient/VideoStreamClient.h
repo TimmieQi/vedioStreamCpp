@@ -14,7 +14,8 @@ class ClientWorker;
 class VideoDecoder;
 class AudioPlayer;
 class DebugWindow;
-class RIFEInterpolator; // 前向声明
+class RIFEInterpolator;
+class FSRCNNUpscaler; // 修改
 
 class VideoStreamClient : public QMainWindow
 {
@@ -34,8 +35,8 @@ private:
     void initWorkerThread();
     void initMediaThreads();
     void resetPlaybackUI();
-    // [新增] 辅助函数，用于根据状态更新按钮的文本和样式
     void updateRIFEButtonState(bool enabled);
+    void updateFSRCNNButtonState(bool enabled); // 修改
 
     QThread* m_videoDecodeThread = nullptr;
     VideoDecoder* m_videoDecoder = nullptr;
@@ -50,6 +51,7 @@ private:
     std::unique_ptr<JitterBuffer> m_audioJitterBuffer;
     std::unique_ptr<DecodedFrameBuffer> m_decodedFrameBuffer;
     std::unique_ptr<RIFEInterpolator> m_rife_interpolator;
+    std::unique_ptr<FSRCNNUpscaler> m_fsrcnnUpscaler; // 修改
 
     QThread* m_workerThread;
     ClientWorker* m_worker;
@@ -60,10 +62,11 @@ private:
     QListWidget* m_videoList = nullptr;
     QPushButton* m_playBtn = nullptr;
     QPushButton* m_debugBtn = nullptr;
-    // [修改] 将按钮定义为 QPushButton*
     QPushButton* m_rifeSwitchButton = nullptr;
+    QPushButton* m_fsrcnnSwitchButton = nullptr; // 修改
     QLabel* m_latencyIndicatorLabel = nullptr;
-    QLabel* m_fpsLabel = nullptr; // [新增] 用于显示帧率的标签
+    QLabel* m_fpsLabel = nullptr;
+    QLabel* m_resolutionLabel = nullptr;
 
     QWidget* m_videoPlayerContainer = nullptr;
     VideoWidget* m_videoWidget = nullptr;
@@ -92,11 +95,16 @@ private:
     DebugWindow* m_debugWindow = nullptr;
     QTimer* m_statusUpdateTimer = nullptr;
     double m_currentFps = 0.0;
-    double m_renderedFps = 0.0; // [新增] 用于存储渲染帧率
+    double m_renderedFps = 0.0;
     int m_frameCount = 0;
-    int m_renderedFrameCount = 0; // [新增] 用于渲染帧的计数器
+    int m_renderedFrameCount = 0;
     qint64 m_lastFpsUpdateTime = 0;
     std::atomic<double> m_currentLatencyMs;
+
+    int m_originalWidth = 0;
+    int m_originalHeight = 0;
+    int m_upscaledWidth = 0;
+    int m_upscaledHeight = 0;
 
 private slots:
     void toggleFullScreen();

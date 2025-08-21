@@ -1,5 +1,6 @@
 ﻿#include "VideoStreamClient.h"
 #include "RIFEInterpolator.h"
+#include "FSRCNNUpscaler.h" // 修改：包含新的头文件
 #include "shared_config.h"
 #include "MasterClock.h"
 #include "NetworkMonitor.h"
@@ -45,10 +46,10 @@ VideoStreamClient::VideoStreamClient(QWidget* parent)
     m_audioJitterBuffer = std::make_unique<JitterBuffer>();
     m_decodedFrameBuffer = std::make_unique<DecodedFrameBuffer>();
     m_rife_interpolator = std::make_unique<RIFEInterpolator>();
+    m_fsrcnnUpscaler = std::make_unique<FSRCNNUpscaler>(); // 修改：创建FSRCNN实例
 
     // ======================【在这里添加代码】======================
-    // 设置一个200毫秒的缓冲延迟。
-    // 你可以根据实际效果在 150, 200, 300 之间调整这个值。
+    // 设置一个100毫秒的缓冲延迟。
     m_decodedFrameBuffer->set_buffer_duration(100);
     // ===============================================================
 
@@ -180,6 +181,20 @@ void VideoStreamClient::initUI()
 
     leftLayout->addWidget(m_rifeSwitchButton);
 
+    // 修改：FSRCNN 开关按钮
+    m_fsrcnnSwitchButton = new QPushButton("FSRCNN 超分: 关闭", m_leftPanelWidget);
+    m_fsrcnnSwitchButton->setCheckable(true);
+    m_fsrcnnSwitchButton->setChecked(false);
+    m_fsrcnnSwitchButton->setCursor(Qt::PointingHandCursor);
+    m_fsrcnnSwitchButton->setMinimumHeight(32);
+    m_fsrcnnSwitchButton->setStyleSheet(QString(
+        "QPushButton { font-size: 14px; font-weight: bold; color: %1; background-color: %2; border: 1px solid %3; border-radius: 5px; }"
+        "QPushButton:hover { background-color: %4; }"
+        "QPushButton:checked { color: white; background-color: %5; border-color: %5; }"
+        "QPushButton:checked:hover { background-color: %6; }"
+    ).arg(COLOR_TEXT_PRIMARY, COLOR_SWITCH_OFF, COLOR_BORDER, COLOR_BUTTON_HOVER, COLOR_SWITCH_ON, COLOR_SWITCH_ON_HOVER));
+    leftLayout->addWidget(m_fsrcnnSwitchButton);
+
     leftLayout->addStretch();
 
     m_debugBtn = new QPushButton("高级调试 (图表)", m_leftPanelWidget);
@@ -192,11 +207,15 @@ void VideoStreamClient::initUI()
     m_latencyIndicatorLabel->setStyleSheet(QString("QLabel { background-color: #e8f0fe; color: %1; padding: 5px; border: 1px solid %2; border-radius: 5px; font-weight: bold; font-size: 14px; }").arg(COLOR_PRIMARY, COLOR_BORDER));
     leftLayout->addWidget(m_latencyIndicatorLabel, 0, Qt::AlignHCenter);
 
-    // [新增] FPS 显示标签
     m_fpsLabel = new QLabel("FPS: N/A", m_leftPanelWidget);
     m_fpsLabel->setAlignment(Qt::AlignCenter);
     m_fpsLabel->setStyleSheet(QString("QLabel { color: %1; font-size: 14px; margin-top: 5px; }").arg(COLOR_TEXT_SECONDARY));
     leftLayout->addWidget(m_fpsLabel, 0, Qt::AlignHCenter);
+
+    m_resolutionLabel = new QLabel("分辨率: N/A", m_leftPanelWidget);
+    m_resolutionLabel->setAlignment(Qt::AlignCenter);
+    m_resolutionLabel->setStyleSheet(QString("QLabel { color: %1; font-size: 14px; margin-top: 5px; }").arg(COLOR_TEXT_SECONDARY));
+    leftLayout->addWidget(m_resolutionLabel, 0, Qt::AlignHCenter);
 
     m_videoPlayerContainer = new QWidget(this);
     m_videoPlayerContainer->setStyleSheet(QString("background-color: %1; border-radius: 8px;").arg(COLOR_PANEL));
@@ -252,10 +271,9 @@ void VideoStreamClient::initUI()
     m_mainLayout->addWidget(m_leftPanelWidget);
     m_mainLayout->addWidget(m_videoPlayerContainer);
 
-    // [最终修正] 恢复这两行关键的布局代码
-    m_mainLayout->setStretch(0, 0); // 左侧面板的收缩按钮不拉伸
-    m_mainLayout->setStretch(1, 0); // 左侧面板不拉伸
-    m_mainLayout->setStretch(2, 1); // 右侧视频播放器占据所有剩余空间
+    m_mainLayout->setStretch(0, 0);
+    m_mainLayout->setStretch(1, 0);
+    m_mainLayout->setStretch(2, 1);
 
     statusBar()->setStyleSheet(QString("background-color: %1; color: %2; font-size: 13px; border-top: 1px solid %3;").arg(COLOR_PANEL, COLOR_TEXT_SECONDARY, COLOR_BORDER));
     statusBar()->showMessage("状态: 未连接");
@@ -298,6 +316,32 @@ void VideoStreamClient::initConnections()
         }
         });
 
+    // 修改：FSRCNN 按钮的信号槽连接
+    connect(m_fsrcnnSwitchButton, &QPushButton::clicked, this, [this](bool checked) {
+        if (checked) {
+            if (!m_fsrcnnUpscaler->is_initialized()) {
+                std::string error_message;
+                // 确保你的 onnx 文件名为 "fsrcnn.onnx" 且位于程序运行目录下
+                bool success = m_fsrcnnUpscaler->initialize("fsrcnn.onnx", error_message);
+
+                if (success) {
+                    QMessageBox::information(this, "成功", "FSRCNN 功能已成功开启！");
+                    updateFSRCNNButtonState(true);
+                }
+                else {
+                    QMessageBox::critical(this, "FSRCNN 加载失败", QString::fromStdString(error_message));
+                    m_fsrcnnSwitchButton->setChecked(false);
+                    updateFSRCNNButtonState(false);
+                }
+            }
+            else {
+                updateFSRCNNButtonState(true);
+            }
+        }
+        else {
+            updateFSRCNNButtonState(false);
+        }
+        });
     connect(m_worker, &ClientWorker::connectionSuccess, this, &VideoStreamClient::handleConnectionSuccess);
     connect(m_worker, &ClientWorker::connectionFailed, this, &VideoStreamClient::handleConnectionFailed);
     connect(m_worker, &ClientWorker::playInfoReceived, this, &VideoStreamClient::handlePlayInfo);
@@ -313,8 +357,15 @@ void VideoStreamClient::updateRIFEButtonState(bool enabled) {
     }
 }
 
-
-// ... (文件的其他部分保持不变) ...
+// 修改：更新 FSRCNN 按钮状态的函数
+void VideoStreamClient::updateFSRCNNButtonState(bool enabled) {
+    if (enabled) {
+        m_fsrcnnSwitchButton->setText("FSRCNN 超分: 开启");
+    }
+    else {
+        m_fsrcnnSwitchButton->setText("FSRCNN 超分: 关闭");
+    }
+}
 
 void VideoStreamClient::onRenderTimerTimeout()
 {
@@ -328,27 +379,22 @@ void VideoStreamClient::onRenderTimerTimeout()
     std::unique_ptr<DecodedFrame> decoded_frame_wrapper;
     bool is_original_frame = false;
 
-    // ======================【核心逻辑修改】======================
     // RIFE开启时，采用新的强制插帧优先逻辑
     if (m_rifeSwitchButton->isChecked() && m_rife_interpolator->is_initialized()) {
         const AVFrame* prev_frame = nullptr;
         const AVFrame* next_frame = nullptr;
         double factor = 0.0;
 
-        // 1. 直接尝试获取用于插值的前后两帧
         m_decodedFrameBuffer->get_interpolation_frames(target_pts, prev_frame, next_frame, factor);
 
-        // 2. 如果前后帧都有效，则强制进行RIFE插帧
-        // factor > 0.01 和 < 0.99 是为了避免在过于接近原始帧时进行不必要的插值
         if (prev_frame && next_frame && factor > 0.01 && factor < 0.99) {
             AVFrame* rife_frame = m_rife_interpolator->interpolate(prev_frame, next_frame, factor);
             if (rife_frame) {
                 decoded_frame_wrapper = std::make_unique<DecodedFrame>(rife_frame);
-                is_original_frame = false; // 明确这是插出来的帧
+                is_original_frame = false;
             }
         }
 
-        // 3. 如果插帧失败（例如缓冲区不足、视频首尾等情况），则回退到获取最接近的原始帧
         if (!decoded_frame_wrapper) {
             decoded_frame_wrapper = m_decodedFrameBuffer->get_frame(target_pts);
             if (decoded_frame_wrapper) {
@@ -367,17 +413,43 @@ void VideoStreamClient::onRenderTimerTimeout()
     // 如果以上所有尝试都失败了，使用最后的备用方案：获取一个最接近的帧（通常是线性插值）
     if (!decoded_frame_wrapper) {
         decoded_frame_wrapper = m_decodedFrameBuffer->get_interpolated_frame(target_pts);
-        // 备用方案获取的帧我们通常认为是“原始帧”的替代品
         if (decoded_frame_wrapper) {
             is_original_frame = true;
         }
     }
-    // ===============================================================
 
     if (!decoded_frame_wrapper) return;
 
-    AVFrame* frame_to_render = decoded_frame_wrapper->frame.get();
-    if (!frame_to_render || !frame_to_render->data[0]) return;
+    // 在处理前，先记录原始分辨率
+    AVFrame* original_frame = decoded_frame_wrapper->frame.get();
+    if (original_frame) {
+        m_originalWidth = original_frame->width;
+        m_originalHeight = original_frame->height;
+    }
+
+    // 修改：FSRCNN 超分处理
+    AVFrame* frame_to_render = nullptr;
+    if (m_fsrcnnSwitchButton->isChecked() && m_fsrcnnUpscaler->is_initialized()) {
+        AVFrame* upscaled_frame = m_fsrcnnUpscaler->upscale(original_frame);
+        if (upscaled_frame) {
+            m_upscaledWidth = upscaled_frame->width;
+            m_upscaledHeight = upscaled_frame->height;
+            decoded_frame_wrapper = std::make_unique<DecodedFrame>(upscaled_frame);
+            frame_to_render = decoded_frame_wrapper->frame.get();
+        }
+        else {
+            frame_to_render = original_frame;
+        }
+    }
+    else {
+        m_upscaledWidth = 0;
+        m_upscaledHeight = 0;
+        frame_to_render = original_frame;
+    }
+
+    if (!frame_to_render || !frame_to_render->data[0]) {
+        return;
+    }
 
     AVFrame* frame_clone = av_frame_clone(frame_to_render);
     if (!frame_clone) {
@@ -403,8 +475,6 @@ void VideoStreamClient::onRenderTimerTimeout()
         m_timeLabel->setText(QString("%1 / %2").arg(current_time.toString("mm:ss")).arg(total_time.toString("mm:ss")));
     }
 }
-// ... (文件的其他部分保持不变) ...
-
 
 void VideoStreamClient::initWorkerThread()
 {
@@ -448,7 +518,17 @@ void VideoStreamClient::resetPlaybackUI()
     m_timeLabel->setText("00:00 / 00:00");
     m_latencyIndicatorLabel->setText("时延状态: 未知");
     m_latencyIndicatorLabel->setStyleSheet("background-color: #e8f0fe; color: #007bff; padding: 5px; border: 1px solid #dcdfe6; border-radius: 5px; font-weight: bold; font-size: 14px;");
-    m_fpsLabel->setText("FPS: N/A"); // [新增] 重置FPS标签
+    m_fpsLabel->setText("FPS: N/A");
+    m_resolutionLabel->setText("分辨率: N/A");
+
+    // 新增：重置FSRCNN按钮状态
+    updateFSRCNNButtonState(false);
+    if (m_fsrcnnSwitchButton) m_fsrcnnSwitchButton->setChecked(false);
+
+    m_originalWidth = 0;
+    m_originalHeight = 0;
+    m_upscaledWidth = 0;
+    m_upscaledHeight = 0;
     m_currentDurationSec = 0.0;
     if (m_debugWindow) {
         m_debugWindow->bitrateChart()->clearChart();
@@ -457,8 +537,8 @@ void VideoStreamClient::resetPlaybackUI()
     }
     m_currentFps = 0.0;
     m_frameCount = 0;
-    m_renderedFps = 0.0;        // [新增] 重置渲染帧率
-    m_renderedFrameCount = 0;   // [新增] 重置渲染帧计数
+    m_renderedFps = 0.0;
+    m_renderedFrameCount = 0;
     m_lastFpsUpdateTime = QDateTime::currentMSecsSinceEpoch();
     m_currentLatencyMs.store(0.0);
 }
@@ -684,8 +764,8 @@ void VideoStreamClient::updateStatus()
     qint64 now = QDateTime::currentMSecsSinceEpoch();
     qint64 timeDiff = now - m_lastFpsUpdateTime;
     if (timeDiff > 0) {
-        m_currentFps = (static_cast<double>(m_frameCount) * 1000.0) / timeDiff;       // 计算解码帧率
-        m_renderedFps = (static_cast<double>(m_renderedFrameCount) * 1000.0) / timeDiff; // 计算渲染帧率
+        m_currentFps = (static_cast<double>(m_frameCount) * 1000.0) / timeDiff;
+        m_renderedFps = (static_cast<double>(m_renderedFrameCount) * 1000.0) / timeDiff;
         m_frameCount = 0;
         m_renderedFrameCount = 0;
         m_lastFpsUpdateTime = now;
@@ -698,7 +778,7 @@ void VideoStreamClient::updateStatus()
     if (m_debugWindow) {
         if (m_masterClock->get_time_ms() >= 0 && !m_masterClock->is_paused()) {
             m_debugWindow->bitrateChart()->updateChart(currentBitrateKbps);
-            m_debugWindow->fpsChart()->updateChart(m_renderedFps); // 调试图表显示最终的渲染帧率
+            m_debugWindow->fpsChart()->updateChart(m_renderedFps);
             m_debugWindow->latencyChart()->updateChart(latency);
         }
     }
@@ -712,16 +792,35 @@ void VideoStreamClient::updateStatus()
         m_latencyIndicatorLabel->setText(QString("时延: %1 ms").arg(static_cast<int>(latency)));
     }
 
-    // [新增] 更新FPS标签的显示文本
+    // 修改：更新FPS标签的显示文本
     if (m_rifeSwitchButton->isChecked()) {
-        // RIFE开启时，同时显示解码帧率和渲染帧率
-        m_fpsLabel->setText(QString("FPS (解码/渲染): %1 / %2")
+        QString status = QString("FPS (解码/渲染): %1 / %2")
             .arg(m_currentFps, 0, 'f', 1)
-            .arg(m_renderedFps, 0, 'f', 1));
+            .arg(m_renderedFps, 0, 'f', 1);
+        if (m_fsrcnnSwitchButton->isChecked()) {
+            status += " [FSRCNN]";
+        }
+        m_fpsLabel->setText(status);
     }
     else {
-        // RIFE关闭时，只显示渲染帧率（此时与解码帧率基本一致）
-        m_fpsLabel->setText(QString("FPS: %1").arg(m_renderedFps, 0, 'f', 1));
+        QString status = QString("FPS: %1").arg(m_renderedFps, 0, 'f', 1);
+        if (m_fsrcnnSwitchButton->isChecked()) {
+            status += " [FSRCNN]";
+        }
+        m_fpsLabel->setText(status);
+    }
+
+    // 修改：更新分辨率标签
+    if (m_originalWidth > 0 && m_originalHeight > 0) {
+        if (m_fsrcnnSwitchButton->isChecked() && m_upscaledWidth > 0 && m_upscaledHeight > 0) {
+            m_resolutionLabel->setText(QString("分辨率: %1x%2 → %3x%4")
+                .arg(m_originalWidth).arg(m_originalHeight)
+                .arg(m_upscaledWidth).arg(m_upscaledHeight));
+        }
+        else {
+            m_resolutionLabel->setText(QString("分辨率: %1x%2")
+                .arg(m_originalWidth).arg(m_originalHeight));
+        }
     }
 }
 
