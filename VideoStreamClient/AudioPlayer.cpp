@@ -6,7 +6,7 @@
 #include <vector>
 #include <qcoreapplication.h>
 
-constexpr int64_t AUDIO_SYNC_THRESHOLD_LATE = 80;
+constexpr int64_t AUDIO_SYNC_THRESHOLD_LATE = 150;
 
 AudioPlayer::AudioPlayer(JitterBuffer& inputBuffer, MasterClock& clock, QObject* parent)
     : QObject(parent),
