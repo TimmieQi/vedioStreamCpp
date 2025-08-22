@@ -369,6 +369,9 @@ void VideoStreamClient::updateFSRCNNButtonState(bool enabled) {
 
 void VideoStreamClient::onRenderTimerTimeout()
 {
+    // 【修改】时钟的推进现在由 get_time_ms 内部基于系统时间计算，不再需要外部 update
+    // 所以此函数主要逻辑不变，但其行为会因为 MasterClock 的改变而变得正确
+
     if (m_masterClock->is_paused()) {
         return;
     }
@@ -672,6 +675,7 @@ void VideoStreamClient::onPlayBtnClicked()
     QString source = currentItem->text();
     statusBar()->showMessage("状态: 正在请求播放 " + source + "...");
 
+    // 【修改】重置时钟
     m_masterClock->reset();
     m_videoJitterBuffer->reset();
     m_audioJitterBuffer->reset();
@@ -700,6 +704,8 @@ void VideoStreamClient::handlePlayInfo(double duration)
     m_playPauseBtn->setChecked(true);
     m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
     m_currentDurationSec = duration;
+
+
     qDebug() << "[Main] 收到播放信息，视频时长:" << duration << "秒";
 }
 
@@ -733,14 +739,21 @@ void VideoStreamClient::onSliderReleased()
     double position = m_progressSlider->value() / 1000.0;
     double targetSec = position * m_currentDurationSec;
 
+    // 清空所有缓冲区
     m_videoJitterBuffer->reset();
     m_audioJitterBuffer->reset();
     m_decodedFrameBuffer->reset();
-    m_masterClock->reset();
 
+    m_masterClock->seek(static_cast<int64_t>(targetSec * 1000.0));
+
+    // 向服务器请求跳转
     QMetaObject::invokeMethod(m_worker, "requestSeek", Qt::QueuedConnection, Q_ARG(double, targetSec));
+
+    // 如果之前是暂停状态，跳转后需要恢复播放
     if (m_masterClock->is_paused()) {
-        onPlayPauseBtnClicked();
+        m_masterClock->resume();
+        m_playPauseBtn->setChecked(true);
+        m_playPauseBtn->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
     }
 }
 

@@ -1,5 +1,4 @@
-﻿#ifndef DECODEDFRAMEBUFFER_H
-#define DECODEDFRAMEBUFFER_H
+﻿#pragma once
 
 #include <deque>
 #include <memory>
@@ -56,4 +55,3 @@ private:
     int buffer_size_ms_; // 缓冲时长（毫秒）
 };
 
-#endif // DECODEDFRAMEBUFFER_H

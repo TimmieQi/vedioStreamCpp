@@ -11,7 +11,7 @@
 class JitterBuffer
 {
 public:
-    JitterBuffer(size_t max_size = 300);
+    JitterBuffer(size_t max_size = 500);
 
     void reset();
     void add_packet(std::unique_ptr<MediaPacket> packet);

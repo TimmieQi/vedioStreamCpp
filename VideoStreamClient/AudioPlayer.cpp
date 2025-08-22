@@ -6,6 +6,8 @@
 #include <vector>
 #include <qcoreapplication.h>
 
+constexpr int64_t AUDIO_SYNC_THRESHOLD_LATE = 80;
+
 AudioPlayer::AudioPlayer(JitterBuffer& inputBuffer, MasterClock& clock, QObject* parent)
     : QObject(parent),
     m_isPlaying(false),
@@ -13,7 +15,6 @@ AudioPlayer::AudioPlayer(JitterBuffer& inputBuffer, MasterClock& clock, QObject*
     m_inputBuffer(inputBuffer),
     m_clock(clock)
 {
-    // 创建一个静音块，用于填充丢失的包
     m_silenceBuffer.resize(AppConfig::AUDIO_CHUNK_SAMPLES * AppConfig::AUDIO_CHANNELS, 0);
 }
 
@@ -23,6 +24,7 @@ AudioPlayer::~AudioPlayer()
     cleanupPortAudio();
 }
 
+// ... initPortAudio 和 cleanupPortAudio 保持不变 ...
 bool AudioPlayer::initPortAudio()
 {
     PaError err = Pa_Initialize();
@@ -33,13 +35,13 @@ bool AudioPlayer::initPortAudio()
 
     err = Pa_OpenDefaultStream(
         &m_stream,
-        0, // no input channels
+        0,
         AppConfig::AUDIO_CHANNELS,
-        paInt16, // 16 bit integer
+        paInt16,
         AppConfig::AUDIO_RATE,
         AppConfig::AUDIO_CHUNK_SAMPLES,
-        nullptr, // no callback, use blocking API
-        nullptr  // no user data
+        nullptr,
+        nullptr
     );
 
     if (err != paNoError) {
@@ -65,11 +67,7 @@ void AudioPlayer::cleanupPortAudio()
 void AudioPlayer::startPlaying()
 {
     if (m_isPlaying) return;
-
-    if (!initPortAudio()) {
-        return;
-    }
-
+    if (!initPortAudio()) return;
     Pa_StartStream(m_stream);
     m_isPlaying = true;
     qDebug() << "[AudioPlayer] 音频播放循环启动。";
@@ -91,45 +89,57 @@ void AudioPlayer::playLoop()
     while (m_isPlaying)
     {
         QCoreApplication::processEvents();
-        if (m_clock.is_paused()) {
+        if (m_clock.is_paused()) { // 等待时钟启动后再检查暂停
             QThread::msleep(10);
             continue;
         }
 
-        // 从 JitterBuffer 获取一个音频包
         auto mediaPacket = m_inputBuffer.get_packet();
-
-        const int16_t* audio_data_ptr;
-        size_t data_size;
-
-        if (mediaPacket && !mediaPacket->payload.isEmpty()) {
-            // 成功获取到包
-            m_clock.start(mediaPacket->ts); // 尝试用第一个收到的包启动时钟
-            m_clock.update_time(mediaPacket->ts);
-            audio_data_ptr = reinterpret_cast<const int16_t*>(mediaPacket->payload.data());
-            data_size = mediaPacket->payload.size() / sizeof(int16_t);
-        }
-        else {
-            // 包丢失或缓冲区为空，播放静音
-            audio_data_ptr = m_silenceBuffer.data();
-            data_size = m_silenceBuffer.size();
+        if (!mediaPacket) {
+            // JitterBuffer 为空或检测到丢包
+            if (m_clock.is_started()) {
+                // 只有在时钟启动后才播放静音，避免一开始就播放
+                Pa_WriteStream(m_stream, m_silenceBuffer.data(), m_silenceBuffer.size());
+            }
+            else {
+                // 时钟还没启动，继续等待第一个包
+                QThread::msleep(5);
+            }
+            continue;
         }
 
-        // 处理音量
+        // 【核心修改】检查并启动主时钟
+        if (!m_clock.is_started()) {
+            m_clock.start(mediaPacket->ts);
+        }
+
+        int64_t master_time_ms = m_clock.get_time_ms();
+        int64_t packet_pts_ms = mediaPacket->ts;
+        int64_t time_diff = packet_pts_ms - master_time_ms;
+
+        if (time_diff < -AUDIO_SYNC_THRESHOLD_LATE) {
+            qDebug() << "[AudioPlayer] 丢弃过时的音频包, PTS:" << packet_pts_ms << "ms, MasterClock:" << master_time_ms << "ms, Diff:" << time_diff << "ms";
+            continue;
+        }
+
+        if (time_diff > 0) {
+            QThread::msleep(static_cast<unsigned long>(time_diff));
+        }
+
+        const int16_t* audio_data_ptr = reinterpret_cast<const int16_t*>(mediaPacket->payload.data());
+        size_t data_size = mediaPacket->payload.size() / sizeof(int16_t);
         double current_volume = m_volume.load();
+
         if (data_size > 0)
         {
-            double current_volume = m_volume.load();
-
-            // 当音量不等于1.0时，才需要创建临时缓冲区并修改
-            if (std::abs(current_volume - 1.0) > 1e-6) { // 使用浮点数比较
+            if (std::abs(current_volume - 1.0) > 1e-6) {
                 std::vector<int16_t> temp_buffer(data_size);
                 for (size_t i = 0; i < data_size; ++i) {
                     temp_buffer[i] = static_cast<int16_t>(audio_data_ptr[i] * current_volume);
                 }
                 Pa_WriteStream(m_stream, temp_buffer.data(), data_size);
             }
-            else { // 音量为1.0，直接写
+            else {
                 Pa_WriteStream(m_stream, audio_data_ptr, data_size);
             }
         }

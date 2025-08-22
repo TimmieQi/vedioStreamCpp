@@ -1,5 +1,5 @@
 ﻿#include "MasterClock.h"
-#include <QDebug> //  qDebug 进行日志输出
+#include <QDebug>
 
 MasterClock::MasterClock()
 {
@@ -8,48 +8,73 @@ MasterClock::MasterClock()
 
 void MasterClock::reset()
 {
-    // C++11风格的原子变量初始化
-    current_pts_ms_.store(-1);
-    paused_.store(false);
+    m_is_started.store(false);
+    m_is_paused.store(false);
+    m_start_system_time_ms = 0;
+    m_start_pts_ms = 0;
+    m_paused_pts_ms = -1; // -1 表示没有有效的暂停时间点
 }
 
+// 修改：start方法现在接受一个初始PTS
 void MasterClock::start(int64_t pts_ms)
 {
-    // 仅在第一次接收到音频时调用
-    int64_t expected = -1;
-    // 使用 compare_exchange_strong 来原子地检查并设置值
-    // 如果 current_pts_ms_ 的当前值是 expected(-1)，则将其更新为 pts_ms
-    if (this->current_pts_ms_.compare_exchange_strong(expected, pts_ms)) {
-        qDebug() << "[时钟] 主时钟启动。初始PTS:" << pts_ms << "ms";
+    // 使用 compare_exchange_strong 确保只启动一次
+    bool expected = false;
+    if (m_is_started.compare_exchange_strong(expected, true)) {
+        m_start_system_time_ms = QDateTime::currentMSecsSinceEpoch();
+        m_start_pts_ms = pts_ms;
+        m_is_paused.store(false);
+        qDebug() << "[时钟] 主时钟已由第一个媒体包启动。初始PTS:" << pts_ms << "ms";
     }
 }
 
-void MasterClock::update_time(int64_t pts_ms)
+void MasterClock::seek(int64_t pts_ms)
 {
-    // 由音频播放线程调用，用实际播放的PTS来驱动时钟前进
-    if (!paused_.load() && pts_ms >= 0) {
-        current_pts_ms_.store(pts_ms);
+    m_start_system_time_ms = QDateTime::currentMSecsSinceEpoch();
+    m_start_pts_ms = pts_ms;
+    m_is_started.store(true);
+    if (m_is_paused.load()) {
+        m_paused_pts_ms = pts_ms;
     }
+    qDebug() << "[时钟] 主时钟跳转到:" << pts_ms << "ms";
 }
 
 int64_t MasterClock::get_time_ms() const
 {
-    return current_pts_ms_.load();
+    if (!m_is_started.load()) {
+        return -1;
+    }
+    if (m_is_paused.load()) {
+        return m_paused_pts_ms;
+    }
+    qint64 current_system_time = QDateTime::currentMSecsSinceEpoch();
+    return (current_system_time - m_start_system_time_ms) + m_start_pts_ms;
 }
 
 void MasterClock::pause()
 {
-    paused_.store(true);
+    if (!m_is_paused.exchange(true)) {
+        m_paused_pts_ms = get_time_ms();
+        qDebug() << "[时钟] 主时钟暂停于:" << m_paused_pts_ms << "ms";
+    }
 }
-
-
 
 void MasterClock::resume()
 {
-    paused_.store(false);
+    if (m_is_paused.exchange(false)) {
+        m_start_system_time_ms = QDateTime::currentMSecsSinceEpoch();
+        m_start_pts_ms = m_paused_pts_ms;
+        qDebug() << "[时钟] 主时钟从" << m_start_pts_ms << "ms 恢复。";
+    }
 }
 
 bool MasterClock::is_paused() const
 {
-    return paused_.load();
+    return m_is_paused.load();
+}
+
+// 新增实现
+bool MasterClock::is_started() const
+{
+    return m_is_started.load();
 }
